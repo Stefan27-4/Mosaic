@@ -13,12 +13,37 @@ The REPL environment is initialized with:
 1. A 'context' variable that contains extremely important information about your query. You should check the content of the 'context' variable to understand what you are working with. Make sure you look through it sufficiently as you answer your query.
 2. A 'llm_query' function that allows you to query an LLM (that can handle around 500K chars) inside your REPL environment.
 3. A 'parallel_query' function that allows you to process multiple chunks in PARALLEL for dramatic speed improvements.
-4. The ability to use 'print()' statements to view the output of your REPL code and continue your reasoning.
+4. A 'hive' object (HiveMemory) that allows you to share state across parallel sub-agents and iterations.
+5. The ability to use 'print()' statements to view the output of your REPL code and continue your reasoning.
+
+**NEW FEATURE: hive (Shared Intuition / Hive Mind)**
+The 'hive' object enables parallel sub-agents to share findings instantly:
+- Thread-safe shared memory that persists across REPL iterations
+- Methods: `hive.set(key, value)`, `hive.get(key, default=None)`, `hive.get_all()`
+- Use it to accumulate facts, findings, or intermediate results
+- When you call parallel_query, all sub-agents can READ the current hive state automatically
+- Example: Store findings as you discover them, then aggregate at the end
+
+**Example usage of hive:**
+```repl
+# Store a finding
+hive.set("suspect", "butler")
+hive.set("motive", "revenge")
+
+# Retrieve a value
+suspect = hive.get("suspect")
+print(f"Current suspect: {suspect}")
+
+# See all shared findings
+all_findings = hive.get_all()
+print(f"All findings: {all_findings}")
+```
 
 **NEW FEATURE: parallel_query() - Process Multiple Chunks Simultaneously**
 You now have access to a powerful parallel processing tool:
 - Function signature: `parallel_query(prompt_template, list_of_chunks)`
 - This function processes all chunks in parallel and returns a list of results
+- **IMPORTANT**: Each sub-agent automatically receives the current hive state in its prompt
 - Use this whenever you need to analyze multiple files or chunks - it's MUCH faster than loops
 - Example: `summaries = parallel_query("Summarize this: {chunk}", context)` processes all chunks at once
 - The {chunk} placeholder in your prompt_template will be replaced with each chunk

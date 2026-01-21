@@ -9,6 +9,7 @@ import sys
 import asyncio
 from io import StringIO
 from typing import Any, Dict, Optional, Callable, Tuple, List
+from .hive_memory import HiveMemory
 
 
 class REPLEnvironment:
@@ -25,7 +26,8 @@ class REPLEnvironment:
         context: Any,
         llm_query_fn: Optional[Callable[[str], str]] = None,
         parallel_query_fn: Optional[Callable[[str, List[str]], List[str]]] = None,
-        max_output_length: int = 10000
+        max_output_length: int = 10000,
+        hive_memory: Optional[HiveMemory] = None
     ):
         """
         Initialize the REPL environment.
@@ -35,11 +37,17 @@ class REPLEnvironment:
             llm_query_fn: Function to call for LLM queries (can be None for no-subcalls mode)
             parallel_query_fn: Function to call for parallel LLM queries (can be None)
             max_output_length: Maximum length of output to return (truncates if longer)
+            hive_memory: Shared memory for parallel sub-agents (auto-created if None)
         """
         self.context = context
         self.max_output_length = max_output_length
+        
+        # Create or use provided hive memory
+        self.hive = hive_memory if hive_memory is not None else HiveMemory()
+        
         self.namespace: Dict[str, Any] = {
             'context': context,
+            'hive': self.hive,  # Inject hive memory into namespace
         }
         
         # Add llm_query function if provided

@@ -7,6 +7,7 @@ them as part of an external environment that the LLM can programmatically intera
 
 from .core import RLM
 from .repl import REPLEnvironment
+from .hive_memory import HiveMemory
 from .llm_interface import (
     LLMInterface,
     OpenAIInterface,
@@ -35,6 +36,7 @@ __version__ = "0.1.0"
 __all__ = [
     "RLM",
     "REPLEnvironment",
+    "HiveMemory",
     "LLMInterface",
     "OpenAIInterface",
     "AnthropicInterface",

@@ -20,7 +20,9 @@ Instead of feeding long prompts directly into the LLM's context window, RLMs:
 - **🎯 Better Quality**: Outperforms base LLMs even on shorter prompts through careful decomposition
 - **🔧 Flexible**: Works with OpenAI, Anthropic, and any LLM provider
 - **📊 Observable**: Full trajectory tracking for analysis and debugging
-- **🎛️ Intelligent Routing**: Automatic model selection based on content type (NEW!)
+- **🎛️ Intelligent Routing**: Automatic model selection based on content type
+- **⚡ Parallel Processing**: 10-20x speedup with asynchronous MapReduce (NEW!)
+- **🧠 Hive Mind**: Shared state across parallel sub-agents for collaborative processing (NEW!)
 
 ## Installation
 
@@ -168,15 +170,103 @@ Run the included examples:
 # Set API key
 export OPENAI_API_KEY="your-key"
 
-# Run example
+# Run examples
 python examples/basic_usage.py
+python examples/parallel_processing_example.py  # Async MapReduce demo
+python examples/hive_memory_example.py          # Hive Mind demo
 ```
 
-The example demonstrates:
-- OpenAI integration
-- Anthropic integration  
+The examples demonstrate:
+- OpenAI and Anthropic integration  
 - No subcalls mode
 - Different context types
+- Parallel processing with async MapReduce
+- Hive memory for shared state
+
+## Hive Memory (Shared Intuition)
+
+**NEW**: Enable parallel sub-agents to share findings instantly rather than working in isolation.
+
+### Overview
+
+The `hive` object provides thread-safe shared memory that persists across REPL iterations and is accessible to all parallel sub-agents. This creates a "hive mind" effect where agents can collaborate.
+
+### Basic Usage
+
+```repl
+# Store findings
+hive.set("suspect", "butler")
+hive.set("weapon", "candlestick")
+
+# Retrieve values
+suspect = hive.get("suspect")
+all_findings = hive.get_all()
+
+# Clear for new session
+hive.clear()
+```
+
+### Integration with Parallel Processing
+
+When you use `parallel_query()`, the current hive state is automatically injected into each sub-agent's prompt:
+
+```repl
+# Set shared context
+hive.set("search_topic", "climate change")
+
+# Sub-agents see hive state automatically
+results = parallel_query("Find mentions of the topic in: {chunk}", documents)
+
+# Accumulate results
+hive.set("total_mentions", len(results))
+```
+
+### Common Patterns
+
+**Pattern 1: Fact Accumulation**
+```repl
+hive.set("important_facts", [])
+
+for doc in context[:10]:
+    facts = extract_key_points(doc)
+    current = hive.get("important_facts", [])
+    hive.set("important_facts", current + facts)
+```
+
+**Pattern 2: Progressive Refinement**
+```repl
+# First pass
+candidates = parallel_query("Find potential answers in: {chunk}", context)
+hive.set("candidates", candidates)
+
+# Second pass (in next iteration)
+best = llm_query(f"Best answer from: {hive.get('candidates')}")
+```
+
+**Pattern 3: Investigation Workflow**
+```repl
+# Initialize
+hive.set("suspects", [])
+hive.set("evidence", [])
+
+# Build case
+hive.set("suspects", hive.get("suspects") + ["butler"])
+hive.set("evidence", hive.get("evidence") + ["candlestick"])
+
+# Solve
+solution = llm_query(f"Analyze: {hive.get_all()}")
+```
+
+### API
+
+- `hive.set(key, value)` - Store a value (thread-safe)
+- `hive.get(key, default=None)` - Retrieve a value (thread-safe)
+- `hive.get_all()` - Get snapshot of all data (thread-safe)
+- `hive.clear()` - Wipe all memory (thread-safe)
+
+**Note**: Each query session gets its own fresh hive memory instance.
+
+See `docs/HIVE_MEMORY.md` for complete documentation and `examples/hive_memory_example.py` for working examples.
 
 ## How It Works
 

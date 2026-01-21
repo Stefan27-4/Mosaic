@@ -12,6 +12,7 @@ from .repl import REPLEnvironment
 from .llm_interface import LLMInterface
 from .prompts import RLM_SYSTEM_PROMPT, RLM_SYSTEM_PROMPT_CONSERVATIVE, RLM_NO_SUBCALLS_PROMPT
 from .utils import format_context_info
+from .hive_memory import HiveMemory
 
 
 class RLM:
@@ -89,6 +90,9 @@ class RLM:
         self.subcall_count = 0
         self.current_recursion_depth = 0
         
+        # Create shared hive memory for this query session
+        hive_memory = HiveMemory()
+        
         # Create llm_query function for sub-calls
         def llm_query_fn(prompt: str) -> str:
             if self.prompt_mode == "no_subcalls":
@@ -131,18 +135,19 @@ class RLM:
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     return pool.submit(
-                        lambda: asyncio.run(self._parallel_query_async(prompt_template, context_chunks))
+                        lambda: asyncio.run(self._parallel_query_async(prompt_template, context_chunks, hive_memory))
                     ).result()
             except RuntimeError:
                 # No event loop running, safe to use asyncio.run()
-                return asyncio.run(self._parallel_query_async(prompt_template, context_chunks))
+                return asyncio.run(self._parallel_query_async(prompt_template, context_chunks, hive_memory))
         
         # Initialize REPL environment
         repl_env = REPLEnvironment(
             context=context,
             llm_query_fn=llm_query_fn if self.prompt_mode != "no_subcalls" else None,
             parallel_query_fn=parallel_query_fn if self.prompt_mode != "no_subcalls" else None,
-            max_output_length=self.max_output_length
+            max_output_length=self.max_output_length,
+            hive_memory=hive_memory
         )
         
         # Format context info for system prompt
@@ -250,16 +255,19 @@ class RLM:
     async def _parallel_query_async(
         self,
         prompt_template: str,
-        context_chunks: List[str]
+        context_chunks: List[str],
+        hive_memory: HiveMemory
     ) -> List[str]:
         """
         Process multiple chunks in parallel using async LLM calls.
         
         Uses a semaphore to limit concurrency and prevent API rate limits.
+        Injects hive memory state into each sub-agent's prompt for shared context.
         
         Args:
             prompt_template: Template string with {chunk} placeholder
             context_chunks: List of text chunks to process
+            hive_memory: Shared memory instance to inject into sub-agents
             
         Returns:
             List of responses in the same order as input chunks
@@ -270,11 +278,21 @@ class RLM:
         # Thread-safe counter using asyncio.Lock
         counter_lock = asyncio.Lock()
         
+        # Get current hive state snapshot
+        hive_state = hive_memory.get_all()
+        
         async def process_chunk(chunk: str, index: int) -> Tuple[int, str]:
             """Process a single chunk with semaphore protection."""
             async with semaphore:
                 # Format the prompt with the chunk
                 prompt = prompt_template.format(chunk=chunk)
+                
+                # Inject hive memory state into the prompt if it exists
+                if hive_state:
+                    hive_context = "\n\nShared Context (Hive Memory):\n"
+                    for key, value in hive_state.items():
+                        hive_context += f"  {key}: {repr(value)}\n"
+                    prompt = hive_context + "\n" + prompt
                 
                 # Increment subcall count (thread-safe)
                 async with counter_lock:
