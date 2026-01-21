@@ -6,8 +6,9 @@ and provides an llm_query function for recursive sub-LM calls.
 """
 
 import sys
+import asyncio
 from io import StringIO
-from typing import Any, Dict, Optional, Callable, Tuple
+from typing import Any, Dict, Optional, Callable, Tuple, List
 
 
 class REPLEnvironment:
@@ -23,6 +24,7 @@ class REPLEnvironment:
         self,
         context: Any,
         llm_query_fn: Optional[Callable[[str], str]] = None,
+        parallel_query_fn: Optional[Callable[[str, List[str]], List[str]]] = None,
         max_output_length: int = 10000
     ):
         """
@@ -31,6 +33,7 @@ class REPLEnvironment:
         Args:
             context: The context to store in the REPL environment
             llm_query_fn: Function to call for LLM queries (can be None for no-subcalls mode)
+            parallel_query_fn: Function to call for parallel LLM queries (can be None)
             max_output_length: Maximum length of output to return (truncates if longer)
         """
         self.context = context
@@ -42,6 +45,10 @@ class REPLEnvironment:
         # Add llm_query function if provided
         if llm_query_fn is not None:
             self.namespace['llm_query'] = llm_query_fn
+        
+        # Add parallel_query function if provided
+        if parallel_query_fn is not None:
+            self.namespace['parallel_query'] = parallel_query_fn
     
     def execute(self, code: str) -> Tuple[str, bool]:
         """

@@ -5,6 +5,7 @@ This module provides an abstract LLM interface and implementations for
 OpenAI, Anthropic, and Google Gemini models.
 """
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 
@@ -18,6 +19,20 @@ class LLMInterface(ABC):
     def query(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
         Query the LLM with a prompt.
+        
+        Args:
+            prompt: The prompt to send to the LLM
+            system_prompt: Optional system prompt to use
+            
+        Returns:
+            The LLM's response as a string
+        """
+        pass
+    
+    @abstractmethod
+    async def query_async(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """
+        Query the LLM asynchronously with a prompt.
         
         Args:
             prompt: The prompt to send to the LLM
@@ -95,6 +110,36 @@ class OpenAIInterface(LLMInterface):
         
         return response.choices[0].message.content
     
+    async def query_async(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """
+        Query the OpenAI model asynchronously.
+        
+        Args:
+            prompt: The prompt to send to the model
+            system_prompt: Optional system prompt
+            
+        Returns:
+            The model's response
+        """
+        from openai import AsyncOpenAI
+        
+        # Create async client with same API key
+        async_client = AsyncOpenAI(api_key=self.client.api_key)
+        
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
+        response = await async_client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature
+        )
+        
+        return response.choices[0].message.content
+    
     def get_model_info(self) -> Dict[str, Any]:
         """Get model information."""
         return {
@@ -158,6 +203,36 @@ class AnthropicInterface(LLMInterface):
             kwargs["system"] = system_prompt
         
         response = self.client.messages.create(**kwargs)
+        
+        return response.content[0].text
+    
+    async def query_async(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """
+        Query the Anthropic model asynchronously.
+        
+        Args:
+            prompt: The prompt to send to the model
+            system_prompt: Optional system prompt
+            
+        Returns:
+            The model's response
+        """
+        from anthropic import AsyncAnthropic
+        
+        # Create async client with same API key
+        async_client = AsyncAnthropic(api_key=self.client.api_key)
+        
+        kwargs = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+        
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        
+        response = await async_client.messages.create(**kwargs)
         
         return response.content[0].text
     
@@ -232,6 +307,37 @@ class GeminiInterface(LLMInterface):
         }
         
         response = self.client.generate_content(
+            full_prompt,
+            generation_config=generation_config
+        )
+        
+        return response.text
+    
+    async def query_async(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """
+        Query the Gemini model asynchronously.
+        
+        Args:
+            prompt: The prompt to send to the model
+            system_prompt: Optional system prompt
+            
+        Returns:
+            The model's response
+        """
+        # Combine system prompt with user prompt if provided
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            full_prompt = prompt
+        
+        # Configure generation parameters
+        generation_config = {
+            "temperature": self.temperature,
+            "max_output_tokens": self.max_tokens,
+        }
+        
+        # Gemini's generate_content_async method
+        response = await self.client.generate_content_async(
             full_prompt,
             generation_config=generation_config
         )

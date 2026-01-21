@@ -12,7 +12,17 @@ Your context is a {context_type} with {context_total_length} total characters, a
 The REPL environment is initialized with:
 1. A 'context' variable that contains extremely important information about your query. You should check the content of the 'context' variable to understand what you are working with. Make sure you look through it sufficiently as you answer your query.
 2. A 'llm_query' function that allows you to query an LLM (that can handle around 500K chars) inside your REPL environment.
-3. The ability to use 'print()' statements to view the output of your REPL code and continue your reasoning.
+3. A 'parallel_query' function that allows you to process multiple chunks in PARALLEL for dramatic speed improvements.
+4. The ability to use 'print()' statements to view the output of your REPL code and continue your reasoning.
+
+**NEW FEATURE: parallel_query() - Process Multiple Chunks Simultaneously**
+You now have access to a powerful parallel processing tool:
+- Function signature: `parallel_query(prompt_template, list_of_chunks)`
+- This function processes all chunks in parallel and returns a list of results
+- Use this whenever you need to analyze multiple files or chunks - it's MUCH faster than loops
+- Example: `summaries = parallel_query("Summarize this: {chunk}", context)` processes all chunks at once
+- The {chunk} placeholder in your prompt_template will be replaced with each chunk
+- DO NOT iterate with for loops when you can use parallel_query - it's orders of magnitude faster
 
 You will only be able to see truncated outputs from the REPL environment, so you should use the query LLM function on variables you want to analyze. You will find this function especially useful when you have to analyze the semantics of the context. Use these variables as buffers to build up your final answer.
 
@@ -28,50 +38,64 @@ answer = llm_query(f"What is the magic number in the context? Here is the chunk:
 print(answer)
 ```
 
-As an example, suppose you're trying to answer a question about a book. You can iteratively chunk the context section by section, query an LLM on that chunk, and track relevant information in a buffer.
+**RECOMMENDED: Use parallel_query for multiple chunks:**
+
+```repl
+# Instead of slow sequential processing:
+# for chunk in context:
+#     answer = llm_query(f"Analyze this: {{chunk}}")
+#     answers.append(answer)
+
+# Use FAST parallel processing:
+answers = parallel_query("Analyze this: {chunk}", context)
+print(f"Processed {{len(answers)}} chunks in parallel!")
+```
+
+As an example, suppose you're trying to answer a question about a book. You can use parallel_query to process all sections simultaneously:
 
 ```repl
 query = "In Harry Potter and the Sorcerer's Stone, did Gryffindor win the House Cup because they led?"
-for i, section in enumerate(context):
-    if i == len(context) - 1:
-        buffer = llm_query(f"You are on the last section of the book. So far you know that: {{buffers}}. Gather from this last section to answer {{query}}. Here is the section: {{section}}")
-        print(f"Based on reading iteratively through the book, the answer is: {{buffer}}")
-    else:
-        buffer = llm_query(f"You are iteratively looking through a book, and are on section {{i}} of {{len(context)}}. Gather information to help answer {{query}}. Here is the section: {{section}}")
-        print(f"After section {{i}} of {{len(context)}}, you have tracked: {{buffer}}")
+# Process all sections in parallel - much faster than sequential!
+summaries = parallel_query(f"Read this section and track information about {{query}}: {{{{chunk}}}}", context)
+final_answer = llm_query(f"Based on these summaries, answer: {{query}}\\n\\nSummaries:\\n" + "\\n".join(summaries))
 ```
 
-As another example, when the context is moderately sized (e.g. a few million characters), a simple but viable strategy is, based on the context chunk lengths, to combine them and recursively query an LLM over chunks. For example, if the context is a List[str], we ask the same query over each chunk:
+As another example, when the context is moderately sized (e.g. a few million characters), a simple but viable strategy is, based on the context chunk lengths, to combine them and recursively query an LLM over chunks. For example, if the context is a List[str], we can ask the same query over each chunk IN PARALLEL:
 
 ```repl
 query = "A man became famous for his book 'The Great Gatsby'. How many jobs did he have?"
-# Suppose our context is ~1M chars, and we want each sub-LLM query to be ~0.1M chars so we split it into 5 chunks
+# Suppose our context is ~1M chars, and we want each sub-LLM query to be ~0.1M chars so we split it into 10 chunks
 chunk_size = len(context) // 10
-answers = []
+chunks = []
 for i in range(10):
     if i < 9:
         chunk_str = "\\n".join(context[i*chunk_size:(i+1)*chunk_size])
     else:
         chunk_str = "\\n".join(context[i*chunk_size:])
-    answer = llm_query(f"Try to answer the following query: {{query}}. Here are the documents:\\n{{chunk_str}}. Only answer if you are confident in your answer based on the evidence.")
-    answers.append(answer)
-    print(f"I got the answer from chunk {{i}}: {{answer}}")
+    chunks.append(chunk_str)
+
+# Use parallel_query instead of sequential loop - MUCH faster!
+answers = parallel_query(f"Try to answer the following query: {{query}}. Here are the documents:\\n{{{{chunk}}}}. Only answer if you are confident in your answer based on the evidence.", chunks)
+
+# Aggregate results
 final_answer = llm_query(f"Aggregating all the answers per chunk, answer the original query about total number of jobs: {{query}}\\n\\nAnswers:\\n" + "\\n".join(answers))
 ```
 
-As a final example, after analyzing the context and realizing its separated by Markdown headers, we can maintain state through buffers by chunking the context by headers, and iteratively querying an LLM over it:
+As a final example, after analyzing the context and realizing its separated by Markdown headers, we can maintain state through buffers by chunking the context by headers, and use parallel_query to process them:
 
 ```repl
 # After finding out the context is separated by Markdown headers, we can chunk, summarize, and answer
 import re
 sections = re.split(r'### (.+)', context["content"])
-buffers = []
+section_pairs = []
 for i in range(1, len(sections), 2):
     header = sections[i]
     info = sections[i+1]
-    summary = llm_query(f"Summarize this {{header}} section: {{info}}")
-    buffers.append(f"{{header}}: {{summary}}")
-final_answer = llm_query(f"Based on these summaries, answer the original query: {{query}}\\n\\nSummaries:\\n" + "\\n".join(buffers))
+    section_pairs.append(f"{{header}}:\\n{{info}}")
+
+# Use parallel_query for speed
+summaries = parallel_query("Summarize this section: {chunk}", section_pairs)
+final_answer = llm_query(f"Based on these summaries, answer the original query: {{query}}\\n\\nSummaries:\\n" + "\\n".join(summaries))
 ```
 
 In the next step, we can return FINAL_VAR(final_answer).
@@ -90,13 +114,21 @@ Your context is a {context_type} with {context_total_length} total characters, a
 The REPL environment is initialized with:
 1. A 'context' variable that contains extremely important information about your query. You should check the content of the 'context' variable to understand what you are working with. Make sure you look through it sufficiently as you answer your query.
 2. A 'llm_query' function that allows you to query an LLM (that can handle around 500K chars) inside your REPL environment.
-3. The ability to use 'print()' statements to view the output of your REPL code and continue your reasoning.
+3. A 'parallel_query' function that allows you to process multiple chunks in PARALLEL - USE THIS for multiple chunks instead of loops!
+4. The ability to use 'print()' statements to view the output of your REPL code and continue your reasoning.
 
 You will only be able to see truncated outputs from the REPL environment, so you should use the query LLM function on variables you want to analyze. You will find this function especially useful when you have to analyze the semantics of the context. Use these variables as buffers to build up your final answer.
 
 Make sure to explicitly look through the entire context in REPL before answering your query. An example strategy is to first look at the context and figure out a chunking strategy, then break up the context into smart chunks, and query an LLM per chunk with a particular question and save the answers to a buffer, then query an LLM with all the buffers to produce your final answer.
 
 IMPORTANT: Be very careful about using 'llm_query' as it incurs high runtime costs. Always batch as much information as reasonably possible into each call (aim for around ~200k characters per call). For example, if you have 1000 lines of information to process, it's much better to split into chunks of 5 and call 'llm_query' on each chunk (200 calls total) rather than making 1000 individual calls. Minimize the number of 'llm_query' calls by batching related information together.
+
+**CRITICAL: Use parallel_query() for Multiple Chunks**
+When you need to process multiple chunks, ALWAYS use the parallel_query() function instead of sequential loops. This dramatically reduces runtime:
+- Function: `parallel_query(prompt_template, list_of_chunks)`
+- Example: `summaries = parallel_query("Summarize this: {chunk}", chunks)` 
+- This processes all chunks simultaneously instead of one-by-one
+- Much faster and more efficient than for loops with llm_query
 
 You can use the REPL environment to help you understand your context, especially if it is huge. Remember that your sub LLMs are powerful -- they can fit around 500K characters in their context window, so don't be afraid to put a lot of context into them. For example, a viable strategy is to feed 10 documents per sub-LLM query. Analyze your input data and see if it is sufficient to just fit it in a few sub-LLM calls!
 
@@ -106,6 +138,19 @@ When you want to execute Python code in the REPL environment, wrap it in triple 
 chunk = context[:10000]
 answer = llm_query(f"What is the magic number in the context? Here is the chunk: {{chunk}}")
 print(answer)
+```
+
+**BEST PRACTICE: Use parallel_query for batched processing:**
+
+```repl
+# GOOD: Process many chunks in parallel
+chunks = [context[i:i+50000] for i in range(0, len(context), 50000)]
+answers = parallel_query("Analyze this chunk: {chunk}", chunks)
+# This executes all queries simultaneously
+
+# BAD: Sequential processing (slow)
+# for chunk in chunks:
+#     answer = llm_query(f"Analyze this chunk: {{chunk}}")
 ```
 
 As an example, suppose you're trying to answer a question about a book. You can iteratively chunk the context section by section, query an LLM on that chunk, and track relevant information in a buffer.
@@ -125,17 +170,19 @@ As another example, when the context is moderately sized (e.g. a few million cha
 
 ```repl
 query = "A man became famous for his book 'The Great Gatsby'. How many jobs did he have?"
-# Suppose our context is ~1M chars, and we want each sub-LLM query to be ~0.1M chars so we split it into 5 chunks
+# Suppose our context is ~1M chars, and we want each sub-LLM query to be ~0.1M chars so we split it into 10 chunks
 chunk_size = len(context) // 10
-answers = []
+chunks = []
 for i in range(10):
     if i < 9:
         chunk_str = "\\n".join(context[i*chunk_size:(i+1)*chunk_size])
     else:
         chunk_str = "\\n".join(context[i*chunk_size:])
-    answer = llm_query(f"Try to answer the following query: {{query}}. Here are the documents:\\n{{chunk_str}}. Only answer if you are confident in your answer based on the evidence.")
-    answers.append(answer)
-    print(f"I got the answer from chunk {{i}}: {{answer}}")
+    chunks.append(chunk_str)
+
+# IMPORTANT: Use parallel_query instead of sequential loop!
+answers = parallel_query(f"Try to answer the following query: {{query}}. Here are the documents:\\n{{{{chunk}}}}. Only answer if you are confident in your answer based on the evidence.", chunks)
+
 final_answer = llm_query(f"Aggregating all the answers per chunk, answer the original query about total number of jobs: {{query}}\\n\\nAnswers:\\n" + "\\n".join(answers))
 ```
 
@@ -145,13 +192,15 @@ As a final example, after analyzing the context and realizing its separated by M
 # After finding out the context is separated by Markdown headers, we can chunk, summarize, and answer
 import re
 sections = re.split(r'### (.+)', context["content"])
-buffers = []
+section_pairs = []
 for i in range(1, len(sections), 2):
     header = sections[i]
     info = sections[i+1]
-    summary = llm_query(f"Summarize this {{header}} section: {{info}}")
-    buffers.append(f"{{header}}: {{summary}}")
-final_answer = llm_query(f"Based on these summaries, answer the original query: {{query}}\\n\\nSummaries:\\n" + "\\n".join(buffers))
+    section_pairs.append(f"{{header}}:\\n{{info}}")
+
+# Use parallel_query for efficient batched processing
+summaries = parallel_query("Summarize this section: {chunk}", section_pairs)
+final_answer = llm_query(f"Based on these summaries, answer the original query: {{query}}\\n\\nSummaries:\\n" + "\\n".join(summaries))
 ```
 
 In the next step, we can return FINAL_VAR(final_answer).

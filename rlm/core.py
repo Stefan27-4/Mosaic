@@ -6,6 +6,7 @@ environment and LLM interactions.
 """
 
 import re
+import asyncio
 from typing import Optional, Any, List, Dict, Tuple
 from .repl import REPLEnvironment
 from .llm_interface import LLMInterface
@@ -28,7 +29,8 @@ class RLM:
         max_iterations: int = 20,
         max_recursion_depth: int = 5,
         max_output_length: int = 10000,
-        prompt_mode: str = "standard"
+        prompt_mode: str = "standard",
+        max_parallel_calls: int = 10
     ):
         """
         Initialize the RLM.
@@ -40,6 +42,7 @@ class RLM:
             max_recursion_depth: Maximum depth for recursive sub-calls
             max_output_length: Maximum length of REPL output
             prompt_mode: Prompt mode - "standard", "conservative", or "no_subcalls"
+            max_parallel_calls: Maximum concurrent API calls in parallel_query
         """
         self.root_llm = root_llm
         self.sub_llm = sub_llm if sub_llm is not None else root_llm
@@ -47,6 +50,7 @@ class RLM:
         self.max_recursion_depth = max_recursion_depth
         self.max_output_length = max_output_length
         self.prompt_mode = prompt_mode
+        self.max_parallel_calls = max_parallel_calls
         
         # Select system prompt based on mode
         if prompt_mode == "conservative":
@@ -102,10 +106,32 @@ class RLM:
             finally:
                 self.current_recursion_depth -= 1
         
+        # Create parallel_query function for parallel sub-calls
+        def parallel_query_fn(prompt_template: str, context_chunks: List[str]) -> List[str]:
+            """
+            Process multiple chunks in parallel using async LLM calls.
+            
+            Args:
+                prompt_template: Template string with {chunk} placeholder
+                context_chunks: List of text chunks to process
+                
+            Returns:
+                List of responses in the same order as input chunks
+            """
+            if self.prompt_mode == "no_subcalls":
+                return ["Error: parallel_query is not available in no_subcalls mode"] * len(context_chunks)
+            
+            if self.current_recursion_depth >= self.max_recursion_depth:
+                return ["Error: Maximum recursion depth reached"] * len(context_chunks)
+            
+            # Run async query in the synchronous context
+            return asyncio.run(self._parallel_query_async(prompt_template, context_chunks))
+        
         # Initialize REPL environment
         repl_env = REPLEnvironment(
             context=context,
             llm_query_fn=llm_query_fn if self.prompt_mode != "no_subcalls" else None,
+            parallel_query_fn=parallel_query_fn if self.prompt_mode != "no_subcalls" else None,
             max_output_length=self.max_output_length
         )
         
@@ -210,6 +236,55 @@ class RLM:
                 print(f"\n{final_answer}")
         
         return final_answer, self.trajectory
+    
+    async def _parallel_query_async(
+        self,
+        prompt_template: str,
+        context_chunks: List[str]
+    ) -> List[str]:
+        """
+        Process multiple chunks in parallel using async LLM calls.
+        
+        Uses a semaphore to limit concurrency and prevent API rate limits.
+        
+        Args:
+            prompt_template: Template string with {chunk} placeholder
+            context_chunks: List of text chunks to process
+            
+        Returns:
+            List of responses in the same order as input chunks
+        """
+        # Create a semaphore to limit concurrent API calls
+        semaphore = asyncio.Semaphore(self.max_parallel_calls)
+        
+        async def process_chunk(chunk: str, index: int) -> Tuple[int, str]:
+            """Process a single chunk with semaphore protection."""
+            async with semaphore:
+                # Format the prompt with the chunk
+                prompt = prompt_template.format(chunk=chunk)
+                
+                # Increment subcall count (thread-safe in async context)
+                self.subcall_count += 1
+                
+                try:
+                    # Call async query method
+                    response = await self.sub_llm.query_async(prompt)
+                    return (index, response)
+                except Exception as e:
+                    # Return error message but continue processing other chunks
+                    return (index, f"Error processing chunk {index}: {str(e)}")
+        
+        # Create tasks for all chunks
+        tasks = [process_chunk(chunk, i) for i, chunk in enumerate(context_chunks)]
+        
+        # Run all tasks concurrently
+        results = await asyncio.gather(*tasks)
+        
+        # Sort by index to maintain original order
+        sorted_results = sorted(results, key=lambda x: x[0])
+        
+        # Return just the responses
+        return [response for _, response in sorted_results]
     
     def _build_prompt_from_history(self, history: List[Dict[str, str]]) -> str:
         """Build a single prompt string from conversation history."""
