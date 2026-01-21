@@ -41,7 +41,7 @@ for i, section in enumerate(context):
         print(f"After section {{i}} of {{len(context)}}, you have tracked: {{buffer}}")
 ```
 
-As another example, when the context isn't extremely long (e.g. <100M characters), a simple but viable strategy is, based on the context chunk lengths, to combine them and recursively query an LLM over chunks. For example, if the context is a List[str], we ask the same query over each chunk:
+As another example, when the context is moderately sized (e.g. a few million characters), a simple but viable strategy is, based on the context chunk lengths, to combine them and recursively query an LLM over chunks. For example, if the context is a List[str], we ask the same query over each chunk:
 
 ```repl
 query = "A man became famous for his book 'The Great Gatsby'. How many jobs did he have?"
@@ -121,7 +121,7 @@ for i, section in enumerate(context):
         print(f"After section {{i}} of {{len(context)}}, you have tracked: {{buffer}}")
 ```
 
-As another example, when the context isn't extremely long (e.g. <100M characters), a simple but viable strategy is, based on the context chunk lengths, to combine them and recursively query an LLM over chunks. For example, if the context is a List[str], we ask the same query over each chunk:
+As another example, when the context is moderately sized (e.g. a few million characters), a simple but viable strategy is, based on the context chunk lengths, to combine them and recursively query an LLM over chunks. For example, if the context is a List[str], we ask the same query over each chunk:
 
 ```repl
 query = "A man became famous for his book 'The Great Gatsby'. How many jobs did he have?"
