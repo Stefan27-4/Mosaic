@@ -45,3 +45,6 @@ htmlcov/
 # API Keys
 .env
 *.key
+
+# Test files
+test_implementation.py
