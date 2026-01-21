@@ -320,6 +320,42 @@ The router automatically detects:
 4. **News Analyst** (Grok 4.1) - Current events, social media
 5. **Efficiency Expert** (DeepSeek 3.2) - Math, logic, default fallback
 
+### Integrated Model Mapping (NEW!)
+
+Pre-configured model mappings - just add your API keys:
+
+```python
+from rlm import route_text, create_model_map
+
+# Set API keys via environment variables or pass directly
+# export OPENAI_API_KEY='your-key'
+# export ANTHROPIC_API_KEY='your-key'
+# export GOOGLE_API_KEY='your-key'
+
+# Create model map (automatically uses env vars)
+model_map = create_model_map()
+
+# Or pass API keys directly
+model_map = create_model_map(
+    openai_api_key="your-openai-key",
+    anthropic_api_key="your-anthropic-key",
+    google_api_key="your-google-key"
+)
+
+# Route and use
+text = "SELECT users.name FROM users WHERE active = true"
+model_id = route_text(text)  # Returns: "gpt-5.2"
+llm = model_map[model_id]
+response = llm.query("Explain this SQL query")
+```
+
+**Model Mappings:**
+- `claude-opus-4.5` → Anthropic Claude 3.5 Sonnet
+- `gpt-5.2` → OpenAI GPT-4o
+- `gemini-3` → Google Gemini 1.5 Pro
+- `grok-4.1` → OpenAI GPT-4o-mini (Grok API not available yet)
+- `deepseek-3.2` → OpenAI GPT-4o-mini (DeepSeek API not available yet)
+
 For complete routing documentation, see [docs/ROUTING_GUIDE.md](docs/ROUTING_GUIDE.md)
 
 ## Best Practices

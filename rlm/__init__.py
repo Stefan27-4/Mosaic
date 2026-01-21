@@ -7,7 +7,13 @@ them as part of an external environment that the LLM can programmatically intera
 
 from .core import RLM
 from .repl import REPLEnvironment
-from .llm_interface import LLMInterface, OpenAIInterface, AnthropicInterface
+from .llm_interface import (
+    LLMInterface,
+    OpenAIInterface,
+    AnthropicInterface,
+    GeminiInterface,
+    create_model_map,
+)
 from .prompts import RLM_SYSTEM_PROMPT, RLM_SYSTEM_PROMPT_CONSERVATIVE, RLM_NO_SUBCALLS_PROMPT
 from .utils import chunk_text, estimate_tokens, format_context_info, load_document
 from .routing import (
@@ -29,6 +35,8 @@ __all__ = [
     "LLMInterface",
     "OpenAIInterface",
     "AnthropicInterface",
+    "GeminiInterface",
+    "create_model_map",
     "RLM_SYSTEM_PROMPT",
     "RLM_SYSTEM_PROMPT_CONSERVATIVE",
     "RLM_NO_SUBCALLS_PROMPT",
