@@ -242,7 +242,8 @@ class RLM:
             List of code strings
         """
         # Pattern to match ```repl or ```python code blocks
-        pattern = r'```(?:repl|python)\n(.*?)```'
+        # Newline after language identifier is optional to handle inline code blocks
+        pattern = r'```(?:repl|python)\n?(.*?)```'
         matches = re.findall(pattern, response, re.DOTALL)
         
         return [match.strip() for match in matches]

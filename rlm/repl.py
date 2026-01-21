@@ -7,7 +7,7 @@ and provides an llm_query function for recursive sub-LM calls.
 
 import sys
 from io import StringIO
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional, Callable, Tuple
 
 
 class REPLEnvironment:
@@ -43,7 +43,7 @@ class REPLEnvironment:
         if llm_query_fn is not None:
             self.namespace['llm_query'] = llm_query_fn
     
-    def execute(self, code: str) -> tuple[str, bool]:
+    def execute(self, code: str) -> Tuple[str, bool]:
         """
         Execute Python code in the REPL environment.
         
