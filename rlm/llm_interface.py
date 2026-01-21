@@ -76,7 +76,7 @@ class OpenAIInterface(LLMInterface):
             temperature: Sampling temperature
         """
         try:
-            from openai import OpenAI
+            from openai import OpenAI, AsyncOpenAI
         except ImportError:
             raise ImportError("openai package is required. Install with: pip install openai>=1.0.0")
         
@@ -84,6 +84,8 @@ class OpenAIInterface(LLMInterface):
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.client = OpenAI(api_key=api_key) if api_key else OpenAI()
+        # Cache async client for reuse
+        self._async_client = AsyncOpenAI(api_key=api_key) if api_key else AsyncOpenAI()
     
     def query(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
@@ -121,17 +123,12 @@ class OpenAIInterface(LLMInterface):
         Returns:
             The model's response
         """
-        from openai import AsyncOpenAI
-        
-        # Create async client with same API key
-        async_client = AsyncOpenAI(api_key=self.client.api_key)
-        
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
         
-        response = await async_client.chat.completions.create(
+        response = await self._async_client.chat.completions.create(
             model=self.model,
             messages=messages,
             max_tokens=self.max_tokens,
@@ -172,7 +169,7 @@ class AnthropicInterface(LLMInterface):
             temperature: Sampling temperature
         """
         try:
-            from anthropic import Anthropic
+            from anthropic import Anthropic, AsyncAnthropic
         except ImportError:
             raise ImportError("anthropic package is required. Install with: pip install anthropic>=0.18.0")
         
@@ -180,6 +177,8 @@ class AnthropicInterface(LLMInterface):
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.client = Anthropic(api_key=api_key) if api_key else Anthropic()
+        # Cache async client for reuse
+        self._async_client = AsyncAnthropic(api_key=api_key) if api_key else AsyncAnthropic()
     
     def query(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
@@ -217,11 +216,6 @@ class AnthropicInterface(LLMInterface):
         Returns:
             The model's response
         """
-        from anthropic import AsyncAnthropic
-        
-        # Create async client with same API key
-        async_client = AsyncAnthropic(api_key=self.client.api_key)
-        
         kwargs = {
             "model": self.model,
             "max_tokens": self.max_tokens,
@@ -232,7 +226,7 @@ class AnthropicInterface(LLMInterface):
         if system_prompt:
             kwargs["system"] = system_prompt
         
-        response = await async_client.messages.create(**kwargs)
+        response = await self._async_client.messages.create(**kwargs)
         
         return response.content[0].text
     
@@ -336,8 +330,8 @@ class GeminiInterface(LLMInterface):
             "max_output_tokens": self.max_tokens,
         }
         
-        # Gemini's generate_content_async method
-        response = await self.client.generate_content_async(
+        # Use agenerate_content for async operations (correct method name)
+        response = await self.client.agenerate_content(
             full_prompt,
             generation_config=generation_config
         )

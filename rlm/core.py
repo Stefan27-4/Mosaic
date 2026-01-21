@@ -124,8 +124,18 @@ class RLM:
             if self.current_recursion_depth >= self.max_recursion_depth:
                 return ["Error: Maximum recursion depth reached"] * len(context_chunks)
             
-            # Run async query in the synchronous context
-            return asyncio.run(self._parallel_query_async(prompt_template, context_chunks))
+            # Check if we're already in an async context
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    return pool.submit(
+                        lambda: asyncio.run(self._parallel_query_async(prompt_template, context_chunks))
+                    ).result()
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run()
+                return asyncio.run(self._parallel_query_async(prompt_template, context_chunks))
         
         # Initialize REPL environment
         repl_env = REPLEnvironment(
@@ -257,17 +267,21 @@ class RLM:
         # Create a semaphore to limit concurrent API calls
         semaphore = asyncio.Semaphore(self.max_parallel_calls)
         
+        # Thread-safe counter using asyncio.Lock
+        counter_lock = asyncio.Lock()
+        
         async def process_chunk(chunk: str, index: int) -> Tuple[int, str]:
             """Process a single chunk with semaphore protection."""
             async with semaphore:
                 # Format the prompt with the chunk
                 prompt = prompt_template.format(chunk=chunk)
                 
-                # Increment subcall count (thread-safe in async context)
-                self.subcall_count += 1
+                # Increment subcall count (thread-safe)
+                async with counter_lock:
+                    self.subcall_count += 1
                 
                 try:
-                    # Call async query method
+                    # Call async query method (no system_prompt needed for sub-calls)
                     response = await self.sub_llm.query_async(prompt)
                     return (index, response)
                 except Exception as e:
