@@ -20,6 +20,7 @@ Instead of feeding long prompts directly into the LLM's context window, RLMs:
 - **🎯 Better Quality**: Outperforms base LLMs even on shorter prompts through careful decomposition
 - **🔧 Flexible**: Works with OpenAI, Anthropic, and any LLM provider
 - **📊 Observable**: Full trajectory tracking for analysis and debugging
+- **🎛️ Intelligent Routing**: Automatic model selection based on content type (NEW!)
 
 ## Installation
 
@@ -279,6 +280,47 @@ context = large_json_data
 query = "What is the average age of users?"
 answer, _ = rlm.query(query, context)
 ```
+
+## Intelligent Routing (NEW!)
+
+The Heuristic Routing Engine automatically selects the optimal AI model based on text content using keyword-density scoring.
+
+### Quick Start with Routing
+
+```python
+from rlm import route_text
+
+# Automatic model selection
+code_text = "class MyApp: def process(): return data"
+model_id = route_text(code_text)  # Returns: "claude-opus-4.5"
+
+sql_text = "SELECT * FROM users WHERE active = true"
+model_id = route_text(sql_text)  # Returns: "gpt-5.2"
+```
+
+### Detailed Routing
+
+```python
+from rlm import HeuristicRoutingEngine
+
+engine = HeuristicRoutingEngine(threshold=0.3)
+
+result = engine.route_with_details(text)
+print(f"Model: {result['model_id']}")
+print(f"Profile: {result['profile_name']}")
+print(f"Confidence: {result['confidence']}")
+```
+
+### 5 Specialist Profiles
+
+The router automatically detects:
+1. **Architect** (Claude Opus 4.5) - Code, legal documents
+2. **Project Manager** (GPT-5.2) - SQL, planning, data structures
+3. **Creative Director** (Gemini 3) - Stories, research, visuals
+4. **News Analyst** (Grok 4.1) - Current events, social media
+5. **Efficiency Expert** (DeepSeek 3.2) - Math, logic, default fallback
+
+For complete routing documentation, see [docs/ROUTING_GUIDE.md](docs/ROUTING_GUIDE.md)
 
 ## Best Practices
 

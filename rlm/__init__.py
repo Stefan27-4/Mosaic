@@ -10,6 +10,16 @@ from .repl import REPLEnvironment
 from .llm_interface import LLMInterface, OpenAIInterface, AnthropicInterface
 from .prompts import RLM_SYSTEM_PROMPT, RLM_SYSTEM_PROMPT_CONSERVATIVE, RLM_NO_SUBCALLS_PROMPT
 from .utils import chunk_text, estimate_tokens, format_context_info, load_document
+from .routing import (
+    HeuristicRoutingEngine,
+    route_text,
+    ProfileConfig,
+    PROFILE_ARCHITECT,
+    PROFILE_PROJECT_MANAGER,
+    PROFILE_CREATIVE_DIRECTOR,
+    PROFILE_NEWS_ANALYST,
+    PROFILE_EFFICIENCY_EXPERT,
+)
 
 __version__ = "0.1.0"
 
@@ -26,4 +36,12 @@ __all__ = [
     "estimate_tokens",
     "format_context_info",
     "load_document",
+    "HeuristicRoutingEngine",
+    "route_text",
+    "ProfileConfig",
+    "PROFILE_ARCHITECT",
+    "PROFILE_PROJECT_MANAGER",
+    "PROFILE_CREATIVE_DIRECTOR",
+    "PROFILE_NEWS_ANALYST",
+    "PROFILE_EFFICIENCY_EXPERT",
 ]
