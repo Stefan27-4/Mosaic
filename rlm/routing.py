@@ -7,8 +7,12 @@ their "Feature Fingerprints."
 """
 
 import re
-from typing import Dict, List, Tuple, Any
+import logging
+from typing import Dict, List, Tuple, Any, Optional, Set
 from collections import Counter
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class ProfileConfig:
@@ -209,6 +213,123 @@ ALL_PROFILES = [
     PROFILE_NEWS_ANALYST,
     PROFILE_EFFICIENCY_EXPERT,
 ]
+
+# Fallback chains for each profile
+# If the ideal model is unavailable, try the next in the chain
+FALLBACK_CHAINS = {
+    "claude-opus-4.5": ["claude-opus-4.5", "gpt-5.2", "deepseek-3.2"],  # Architect -> Project Manager -> Efficiency
+    "gpt-5.2": ["gpt-5.2", "deepseek-3.2"],  # Project Manager -> Efficiency
+    "gemini-3": ["gemini-3", "gpt-5.2", "deepseek-3.2"],  # Creative -> Project Manager -> Efficiency
+    "grok-4.1": ["grok-4.1", "gpt-5.2", "deepseek-3.2"],  # News -> Project Manager -> Efficiency
+    "deepseek-3.2": ["deepseek-3.2", "gpt-5.2"],  # Efficiency -> Project Manager
+}
+
+
+def get_available_models(model_map: Dict[str, Any]) -> Set[str]:
+    """
+    Detect which models are actually available in the model map.
+    
+    Args:
+        model_map: Dictionary mapping model IDs to LLM instances
+        
+    Returns:
+        Set of available model IDs
+    """
+    return set(model_map.keys())
+
+
+def classify_chunk(
+    text: str,
+    available_models: Optional[Set[str]] = None,
+    threshold: float = 0.3
+) -> Tuple[str, Dict[str, Any]]:
+    """
+    Classify a text chunk and route to the best available model.
+    
+    This is the main routing function with single-key bypass optimization
+    and fallback chain support.
+    
+    Args:
+        text: Text chunk to classify
+        available_models: Set of available model IDs. If None, assumes all models available.
+        threshold: Confidence threshold for routing decision
+        
+    Returns:
+        Tuple of (model_id, details):
+            - model_id: Selected model ID
+            - details: Dictionary with routing details (scores, fallback_used, etc.)
+    """
+    # Step 0: Single-Key Bypass
+    if available_models is not None and len(available_models) == 1:
+        single_model = list(available_models)[0]
+        logger.info(f"Single-key bypass: Only one model available ({single_model}), skipping scoring")
+        return single_model, {
+            "bypass": True,
+            "reason": "single_key_bypass",
+            "available_models": len(available_models)
+        }
+    
+    # Step 1: Run scoring to find ideal model
+    engine = HeuristicRoutingEngine(threshold=threshold)
+    result = engine.route_with_details(text)
+    ideal_model = result['model_id']
+    
+    # If no available_models specified, assume all are available
+    if available_models is None:
+        return ideal_model, {
+            "bypass": False,
+            "ideal_model": ideal_model,
+            "confidence": result['confidence'],
+            "profile": result['profile_name'],
+            "fallback_used": False
+        }
+    
+    # Step 2: Check if ideal model is available
+    if ideal_model in available_models:
+        return ideal_model, {
+            "bypass": False,
+            "ideal_model": ideal_model,
+            "confidence": result['confidence'],
+            "profile": result['profile_name'],
+            "fallback_used": False
+        }
+    
+    # Step 3: Iterate through fallback chain
+    fallback_chain = FALLBACK_CHAINS.get(ideal_model, [ideal_model, "deepseek-3.2"])
+    
+    for fallback_model in fallback_chain:
+        if fallback_model in available_models:
+            # Log warning about fallback
+            logger.warning(
+                f"{result['profile_name']} task detected, but {ideal_model} missing. "
+                f"Re-routing to {fallback_model}."
+            )
+            return fallback_model, {
+                "bypass": False,
+                "ideal_model": ideal_model,
+                "actual_model": fallback_model,
+                "confidence": result['confidence'],
+                "profile": result['profile_name'],
+                "fallback_used": True,
+                "fallback_chain": fallback_chain
+            }
+    
+    # Step 4: If no fallback available, return deepseek-3.2 (default)
+    logger.error(
+        f"No models available in fallback chain for {ideal_model}. "
+        f"Defaulting to deepseek-3.2"
+    )
+    return "deepseek-3.2", {
+        "bypass": False,
+        "ideal_model": ideal_model,
+        "actual_model": "deepseek-3.2",
+        "confidence": result['confidence'],
+        "profile": result['profile_name'],
+        "fallback_used": True,
+        "fallback_chain": fallback_chain,
+        "error": "no_models_in_chain_available"
+    }
+
 
 
 class HeuristicRoutingEngine:

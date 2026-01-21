@@ -19,12 +19,15 @@ from .utils import chunk_text, estimate_tokens, format_context_info, load_docume
 from .routing import (
     HeuristicRoutingEngine,
     route_text,
+    classify_chunk,
+    get_available_models,
     ProfileConfig,
     PROFILE_ARCHITECT,
     PROFILE_PROJECT_MANAGER,
     PROFILE_CREATIVE_DIRECTOR,
     PROFILE_NEWS_ANALYST,
     PROFILE_EFFICIENCY_EXPERT,
+    FALLBACK_CHAINS,
 )
 
 __version__ = "0.1.0"
@@ -46,10 +49,13 @@ __all__ = [
     "load_document",
     "HeuristicRoutingEngine",
     "route_text",
+    "classify_chunk",
+    "get_available_models",
     "ProfileConfig",
     "PROFILE_ARCHITECT",
     "PROFILE_PROJECT_MANAGER",
     "PROFILE_CREATIVE_DIRECTOR",
     "PROFILE_NEWS_ANALYST",
     "PROFILE_EFFICIENCY_EXPERT",
+    "FALLBACK_CHAINS",
 ]

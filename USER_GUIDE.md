@@ -356,6 +356,43 @@ response = llm.query("Explain this SQL query")
 - `grok-4.1` → OpenAI GPT-4o-mini (Grok API not available yet)
 - `deepseek-3.2` → OpenAI GPT-4o-mini (DeepSeek API not available yet)
 
+### Smart Routing with Fallbacks (NEW!)
+
+Automatic optimization and fallback handling:
+
+```python
+from rlm import classify_chunk, get_available_models, create_model_map
+
+# Create model map (only provide keys you have)
+model_map = create_model_map(
+    openai_api_key="your-key"
+    # No Anthropic or Google keys
+)
+
+# Detect available models
+available = get_available_models(model_map)
+
+# Smart routing with fallbacks
+text = "class MyApp: def process(): return data"
+model_id, details = classify_chunk(text, available_models=available)
+
+llm = model_map[model_id]
+response = llm.query("your prompt")
+
+# Check routing details
+if details.get('fallback_used'):
+    print(f"Fallback: {details['ideal_model']} → {model_id}")
+```
+
+**Key Optimizations:**
+
+1. **Single-Key Bypass**: If you only have one API key, routing skips all scoring for maximum efficiency
+2. **Fallback Chains**: When ideal model unavailable, automatically uses next best option:
+   - Architect (Claude) → Project Manager (GPT) → Efficiency (default)
+   - Creative (Gemini) → Project Manager (GPT) → Efficiency (default)
+   - News (Grok) → Project Manager (GPT) → Efficiency (default)
+3. **Logging**: Warnings logged when fallbacks are triggered
+
 For complete routing documentation, see [docs/ROUTING_GUIDE.md](docs/ROUTING_GUIDE.md)
 
 ## Best Practices
