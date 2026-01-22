@@ -32,11 +32,11 @@ hive.set("motive", "revenge")
 
 # Retrieve a value
 suspect = hive.get("suspect")
-print(f"Current suspect: {suspect}")
+print(f"Current suspect: {{suspect}}")
 
 # See all shared findings
 all_findings = hive.get_all()
-print(f"All findings: {all_findings}")
+print(f"All findings: {{all_findings}}")
 ```
 
 **NEW FEATURE: parallel_query() - Process Multiple Chunks Simultaneously**
@@ -45,8 +45,8 @@ You now have access to a powerful parallel processing tool:
 - This function processes all chunks in parallel and returns a list of results
 - **IMPORTANT**: Each sub-agent automatically receives the current hive state in its prompt
 - Use this whenever you need to analyze multiple files or chunks - it's MUCH faster than loops
-- Example: `summaries = parallel_query("Summarize this: {chunk}", context)` processes all chunks at once
-- The {chunk} placeholder in your prompt_template will be replaced with each chunk
+- Example: `summaries = parallel_query("Summarize this: {{chunk}}", context)` processes all chunks at once
+- The {{chunk}} placeholder in your prompt_template will be replaced with each chunk
 - DO NOT iterate with for loops when you can use parallel_query - it's orders of magnitude faster
 
 You will only be able to see truncated outputs from the REPL environment, so you should use the query LLM function on variables you want to analyze. You will find this function especially useful when you have to analyze the semantics of the context. Use these variables as buffers to build up your final answer.
@@ -72,7 +72,7 @@ print(answer)
 #     answers.append(answer)
 
 # Use FAST parallel processing:
-answers = parallel_query("Analyze this: {chunk}", context)
+answers = parallel_query("Analyze this: {{chunk}}", context)
 print(f"Processed {{len(answers)}} chunks in parallel!")
 ```
 
@@ -119,7 +119,7 @@ for i in range(1, len(sections), 2):
     section_pairs.append(f"{{header}}:\\n{{info}}")
 
 # Use parallel_query for speed
-summaries = parallel_query("Summarize this section: {chunk}", section_pairs)
+summaries = parallel_query("Summarize this section: {{chunk}}", section_pairs)
 final_answer = llm_query(f"Based on these summaries, answer the original query: {{query}}\\n\\nSummaries:\\n" + "\\n".join(summaries))
 ```
 
@@ -151,7 +151,7 @@ IMPORTANT: Be very careful about using 'llm_query' as it incurs high runtime cos
 **CRITICAL: Use parallel_query() for Multiple Chunks**
 When you need to process multiple chunks, ALWAYS use the parallel_query() function instead of sequential loops. This dramatically reduces runtime:
 - Function: `parallel_query(prompt_template, list_of_chunks)`
-- Example: `summaries = parallel_query("Summarize this: {chunk}", chunks)` 
+- Example: `summaries = parallel_query("Summarize this: {{chunk}}", chunks)` 
 - This processes all chunks simultaneously instead of one-by-one
 - Much faster and more efficient than for loops with llm_query
 
@@ -170,7 +170,7 @@ print(answer)
 ```repl
 # GOOD: Process many chunks in parallel
 chunks = [context[i:i+50000] for i in range(0, len(context), 50000)]
-answers = parallel_query("Analyze this chunk: {chunk}", chunks)
+answers = parallel_query("Analyze this chunk: {{chunk}}", chunks)
 # This executes all queries simultaneously
 
 # BAD: Sequential processing (slow)
@@ -224,7 +224,7 @@ for i in range(1, len(sections), 2):
     section_pairs.append(f"{{header}}:\\n{{info}}")
 
 # Use parallel_query for efficient batched processing
-summaries = parallel_query("Summarize this section: {chunk}", section_pairs)
+summaries = parallel_query("Summarize this section: {{chunk}}", section_pairs)
 final_answer = llm_query(f"Based on these summaries, answer the original query: {{query}}\\n\\nSummaries:\\n" + "\\n".join(summaries))
 ```
 
