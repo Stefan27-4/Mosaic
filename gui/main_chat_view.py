@@ -10,6 +10,7 @@ import time
 import queue
 import os
 from tkinter import filedialog
+from rlm.utils import load_pdf, chunk_text
 from .backend_bridge import MosaicBridge
 
 
@@ -321,9 +322,6 @@ class MainChatView(ctk.CTk):
             # Show loading message
             self._add_system_message(f"📄 Loading: {filename}...")
             self._add_debug_message(f"[LOAD] Starting PDF extraction from: {file_path}")
-            
-            # Import the PDF loader
-            from rlm.utils import load_pdf, chunk_text
             
             # Extract text from PDF
             try:

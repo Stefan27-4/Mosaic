@@ -6,6 +6,7 @@ and context formatting.
 """
 
 from typing import List, Union, Any
+import os
 import fitz  # PyMuPDF
 
 
@@ -117,6 +118,10 @@ def load_pdf(file_path: str) -> str:
         ValueError: If PDF cannot be read or is password-protected
         FileNotFoundError: If the file does not exist
     """
+    # Check if file exists before attempting to open
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"PDF file not found: {file_path}")
+    
     try:
         # Open the PDF file
         doc = fitz.open(file_path)
@@ -145,12 +150,6 @@ def load_pdf(file_path: str) -> str:
         
         return combined_text
         
-    except RuntimeError as e:
-        # PyMuPDF raises RuntimeError subclass for file not found
-        if "no such file" in str(e):
-            raise FileNotFoundError(f"PDF file not found: {file_path}")
-        # Re-raise other runtime errors as ValueError
-        raise ValueError(f"Failed to read PDF: {str(e)}")
     except ValueError:
         # Re-raise our custom ValueError messages
         raise
