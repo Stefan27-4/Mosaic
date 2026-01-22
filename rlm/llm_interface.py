@@ -437,33 +437,36 @@ def create_model_map(
         
         # Try primary model first (gemini-2.5-pro)
         gemini_model = None
+        gemini_config = {
+            "api_key": google_api_key,
+            "max_tokens": 8192
+        }
+        
         try:
             gemini_interface = GeminiInterface(
                 model="gemini-2.5-pro",
-                api_key=google_api_key,
-                max_tokens=8192
+                **gemini_config
             )
             gemini_model = "gemini-2.5-pro"
             logger.info("Successfully initialized Google Gemini interface with gemini-2.5-pro")
-        except Exception as e:
+        except (ImportError, ValueError) as e:
             logger.warning(f"Failed to initialize with gemini-2.5-pro: {e}, trying fallback to gemini-2.5-flash")
             # Fallback to gemini-2.5-flash
             try:
                 gemini_interface = GeminiInterface(
                     model="gemini-2.5-flash",
-                    api_key=google_api_key,
-                    max_tokens=8192
+                    **gemini_config
                 )
                 gemini_model = "gemini-2.5-flash"
                 logger.info("Successfully initialized Google Gemini interface with gemini-2.5-flash")
-            except Exception as fallback_error:
+            except (ImportError, ValueError) as fallback_error:
                 logger.error(f"Failed to initialize with gemini-2.5-flash: {fallback_error}")
-                raise Exception(f"Both gemini-2.5-pro and gemini-2.5-flash failed to initialize")
+                raise RuntimeError(f"Both gemini-2.5-pro and gemini-2.5-flash failed to initialize")
         
         # Profile C: Creative Director - Gemini for creative/research
         model_map["gemini-3"] = gemini_interface
         initialized_providers.append(f"Google Gemini (gemini-3 using {gemini_model})")
-    except (ImportError, ValueError, Exception) as e:
+    except (ImportError, ValueError, RuntimeError) as e:
         logger.warning(f"Failed to initialize Google Gemini interface: {e}")
         failed_providers.append(f"Google Gemini ({type(e).__name__}: {str(e)})")
     
