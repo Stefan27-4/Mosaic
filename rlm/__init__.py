@@ -30,6 +30,13 @@ from .routing import (
     PROFILE_EFFICIENCY_EXPERT,
     FALLBACK_CHAINS,
 )
+from .resilience import (
+    CriticRouter,
+    ResilientAgent,
+    TaskType,
+    ValidationResult,
+    detect_task_type,
+)
 
 __version__ = "0.1.0"
 
@@ -60,4 +67,9 @@ __all__ = [
     "PROFILE_NEWS_ANALYST",
     "PROFILE_EFFICIENCY_EXPERT",
     "FALLBACK_CHAINS",
+    "CriticRouter",
+    "ResilientAgent",
+    "TaskType",
+    "ValidationResult",
+    "detect_task_type",
 ]

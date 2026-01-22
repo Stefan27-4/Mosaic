@@ -23,6 +23,7 @@ Instead of feeding long prompts directly into the LLM's context window, RLMs:
 - **🎛️ Intelligent Routing**: Automatic model selection based on content type
 - **⚡ Parallel Processing**: 10-20x speedup with asynchronous MapReduce (NEW!)
 - **🧠 Hive Mind**: Shared state across parallel sub-agents for collaborative processing (NEW!)
+- **🛡️ Adaptive Validation**: Tiered validation with peer review and self-correction (NEW!)
 
 ## Installation
 
@@ -543,3 +544,117 @@ MIT License - see LICENSE file for details
 ## Acknowledgments
 
 This implementation is based on the research paper "Recursive Language Models" by Zhang et al. (2025) from MIT CSAIL.
+
+## Resilience Layer - Adaptive Validation
+
+The resilience layer provides intelligent quality assurance through tiered validation:
+
+### Quick Start
+
+```python
+from rlm import ResilientAgent, CriticRouter, TaskType, OpenAIInterface
+
+# Setup LLM and critic router
+llm = OpenAIInterface(model="gpt-4o")
+available_models = {"claude-opus-4.5", "gpt-5.2"}
+router = CriticRouter(available_models)
+
+# Create resilient agent with validation
+agent = ResilientAgent(
+    llm_interface=llm,
+    critic_router=router,
+    max_retries=3,
+    enable_semantic_validation=True,
+    validation_cost_limit=1.0  # Max $1 on validation
+)
+
+# Execute with automatic validation and retry
+result, validation_history = agent.execute_with_retry(
+    task_prompt="Write a function to process user data",
+    task_type=TaskType.CODE,
+    output_format="python",
+    task_description="Data processing function"
+)
+
+print(f"Result: {result}")
+print(f"Validation attempts: {len(validation_history)}")
+```
+
+### Two-Tier Validation
+
+**Tier 1: Instant Checks (Free & Fast)**
+- Python syntax validation
+- JSON format validation  
+- Zero cost, <1ms speed
+- Immediate retry on failure
+
+**Tier 2: Semantic Checks (Smart Critics)**
+- Logic error detection
+- Security vulnerability checks
+- Peer review or self-correction
+- ~$0.01 per check, 1-3 seconds
+
+### Peer Review vs Self-Correction
+
+The system automatically adapts based on available models:
+
+```python
+# Multiple models available → Peer Review
+available = {"claude-opus-4.5", "gpt-5.2", "gemini-3"}
+router = CriticRouter(available)
+
+critic, is_peer = router.get_critic(TaskType.CODE, "gpt-5.2")
+# Returns: ("claude-opus-4.5", True) - Different model reviews!
+
+# Single model available → Self-Correction
+available_single = {"gpt-5.2"}
+router_single = CriticRouter(available_single)
+
+critic, is_peer = router_single.get_critic(TaskType.CODE, "gpt-5.2")
+# Returns: ("gpt-5.2", False) - Same model reviews itself
+```
+
+### Task Types and Critic Routing
+
+Different task types route to optimal critics:
+
+- **CODE**: Claude Opus > Claude Sonnet > GPT-4
+- **LOGIC_MATH**: DeepSeek > GPT-4 > Claude
+- **WRITING**: GPT-4 > Gemini > Claude
+- **GENERAL**: GPT-4 > Claude > Gemini > DeepSeek
+
+```python
+from rlm import detect_task_type
+
+# Auto-detect task type
+task = detect_task_type("Write a function to calculate primes")
+# Returns: TaskType.CODE
+
+task = detect_task_type("Solve: x^2 + 3x - 4 = 0")
+# Returns: TaskType.LOGIC_MATH
+```
+
+### Cost Control
+
+Validation costs are automatically tracked and limited:
+
+```python
+agent = ResilientAgent(
+    llm,
+    router,
+    enable_semantic_validation=True,
+    validation_cost_limit=0.50  # Max $0.50
+)
+
+result, history = agent.execute_with_retry(...)
+
+print(f"Validation cost: ${agent.validation_cost_spent:.2f}")
+# Automatically stops semantic validation if budget exceeded
+```
+
+### Complete Documentation
+
+For detailed information, see:
+- **[Resilience Guide](docs/RESILIENCE_GUIDE.md)** - Complete documentation
+- **[Examples](examples/resilience_example.py)** - Working code examples
+
