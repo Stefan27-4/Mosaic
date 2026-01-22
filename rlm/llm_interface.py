@@ -251,7 +251,7 @@ class GeminiInterface(LLMInterface):
     
     def __init__(
         self,
-        model: str = "gemini-1.5-pro",
+        model: str = "gemini-1.5-flash",
         api_key: Optional[str] = None,
         max_tokens: int = 8192,
         temperature: float = 0.0
@@ -435,7 +435,7 @@ def create_model_map(
         if not google_api_key or not google_api_key.strip():
             raise ValueError("Google API Key is missing")
         gemini_interface = GeminiInterface(
-            model="gemini-1.5-pro",
+            model="gemini-1.5-flash",
             api_key=google_api_key,
             max_tokens=8192
         )
