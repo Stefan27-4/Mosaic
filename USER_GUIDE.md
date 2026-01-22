@@ -916,3 +916,111 @@ For detailed information, see:
 - **[Examples](examples/token_optimization_example.py)** - Working code examples
 
 
+
+
+## Persona System
+
+The Persona System provides specialized system prompts for each specialist role, with intelligent model resolution for single or multi-key scenarios.
+
+### Basic Usage
+
+```python
+from rlm import PromptManager, ModelResolver, map_routing_profile_to_persona
+
+# Initialize
+pm = PromptManager()
+available = {"gpt-5.2", "claude-opus-4.5"}
+resolver = ModelResolver(available)
+
+# Get specialized prompt for a role
+system_prompt = pm.get_system_message(
+    role_id="architect",
+    context_type="Python codebase",
+    context_total_length=100000,
+    hive_state={}
+)
+```
+
+### The 5 Core Personas
+
+1. **Architect** (Claude Opus 4.5) - Code architecture, design patterns, legal documents
+2. **Project Manager** (GPT-5.2) - SQL, data structures, planning, workflows
+3. **Creative Director** (Gemini 3) - Narrative writing, research synthesis
+4. **News Analyst** (Grok 4.1) - Fact-checking, social media, current events
+5. **Efficiency Expert** (DeepSeek 3.2) - Math, logic, general tasks
+
+### Model Resolution (Critical for Single-Key Users)
+
+```python
+# Multi-key: Uses fallback chains
+available = {"gpt-5.2", "claude-opus-4.5", "deepseek-3.2"}
+resolver = ModelResolver(available)
+resolved, fallback = resolver.resolve_model("gemini-3")
+# Result: ("gpt-5.2", True) - fallback to next best
+
+# Single-key: Bypasses all logic
+available = {"gpt-5.2"}
+resolver = ModelResolver(available)
+resolved, fallback = resolver.resolve_model("claude-opus-4.5")
+# Result: ("gpt-5.2", True) - uses what's available
+```
+
+### Complete Workflow
+
+```python
+from rlm import route_text, get_prompt_manager, get_model_resolver
+
+# 1. Route to determine profile
+text = "class User: pass"
+profile = route_text(text)  # Routing logic
+
+# 2. Map to persona
+role_id = map_routing_profile_to_persona(profile)
+
+# 3. Get preferred model
+pm = get_prompt_manager()
+preferred = pm.get_model_preference(role_id)
+
+# 4. Resolve to available model
+available = {"gpt-5.2"}
+resolver = get_model_resolver(available)
+resolved, _ = resolver.resolve_model(preferred)
+
+# 5. Get specialized prompt
+prompt = pm.get_system_message(role_id, ...)
+
+# 6. Query with resolved model and specialized prompt
+# response = llm.query(user_query, system_prompt=prompt)
+```
+
+### Custom Personas
+
+Add custom personas in `rlm/personas.yaml`:
+
+```yaml
+personas:
+  data_scientist:
+    role_id: "data_scientist"
+    display_name: "Data Scientist"
+    model_preference: "gpt-5.2"
+    system_prompt: |
+      You are a Data Scientist...
+    tools:
+      - llm_query
+      - parallel_query
+      - hive
+```
+
+### Best Practices
+
+1. **Always use ModelResolver** - Don't assume preferred models are available
+2. **Single-key mode is default** - Most users have only 1 API key
+3. **Provide rich context** - Include context_type, lengths, hive_state
+4. **Log fallbacks** - Set `log_fallback=True` for debugging
+
+### Complete Documentation
+
+For detailed information, see:
+- **[Persona System Guide](docs/PERSONA_SYSTEM_GUIDE.md)** - Complete documentation
+- **[Examples](examples/persona_system_example.py)** - Working code examples
+

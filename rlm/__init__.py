@@ -56,6 +56,13 @@ from .token_optimizer import (
     smart_chunk_text,
     MODEL_SPECS,
 )
+from .persona_manager import (
+    PromptManager,
+    ModelResolver,
+    get_prompt_manager,
+    get_model_resolver,
+    map_routing_profile_to_persona,
+)
 
 __version__ = "0.1.0"
 
@@ -106,4 +113,9 @@ __all__ = [
     "calculate_chunk_size",
     "smart_chunk_text",
     "MODEL_SPECS",
+    "PromptManager",
+    "ModelResolver",
+    "get_prompt_manager",
+    "get_model_resolver",
+    "map_routing_profile_to_persona",
 ]
