@@ -126,8 +126,9 @@ class SettingsTab(ctk.CTkFrame):
         self.status_label.pack(side="left", fill="x", expand=True)
         
         # Technical details (collapsible info)
+        trajectories_path = Path.home() / ".mosaic" / "data" / "trajectories"
         details_text = (
-            "📁 Files Location: ~/.mosaic/data/trajectories/\n"
+            f"📁 Files Location: {trajectories_path}\n"
             "📦 File Format: .jsonl.gz (compressed JSON)\n"
             "🔒 Privacy: All personal data is anonymized before upload"
         )

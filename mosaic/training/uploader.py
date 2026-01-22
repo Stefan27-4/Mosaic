@@ -4,8 +4,8 @@ S3 Uploader for Data Donation feature.
 Handles uploading anonymized training logs to AWS S3.
 """
 
-import os
 import zipfile
+import tempfile
 from pathlib import Path
 from datetime import datetime
 import shutil
@@ -83,7 +83,7 @@ class S3Uploader:
         # Create temporary zip archive
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         zip_filename = f"mosaic_donation_{timestamp}.zip"
-        zip_path = Path("/tmp") / zip_filename
+        zip_path = Path(tempfile.gettempdir()) / zip_filename
         
         try:
             # Create zip file
