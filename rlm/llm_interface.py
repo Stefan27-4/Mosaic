@@ -260,7 +260,7 @@ class GeminiInterface(LLMInterface):
         Initialize the Gemini interface.
         
         Args:
-            model: Model name (e.g., "gemini-1.5-pro", "gemini-1.5-flash")
+            model: Model name (e.g., "gemini-1.5-flash", "gemini-1.5-pro")
             api_key: Google API key (if None, uses environment variable)
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature
