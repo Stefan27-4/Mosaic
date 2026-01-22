@@ -389,7 +389,7 @@ def create_model_map(
     
     # Try to initialize Anthropic interface
     try:
-        if not anthropic_api_key:
+        if not anthropic_api_key or not anthropic_api_key.strip():
             raise ValueError("Anthropic API Key is missing")
         anthropic_interface = AnthropicInterface(
             model="claude-3-5-sonnet-20241022",
@@ -406,7 +406,7 @@ def create_model_map(
     
     # Try to initialize OpenAI interface
     try:
-        if not openai_api_key:
+        if not openai_api_key or not openai_api_key.strip():
             raise ValueError("OpenAI API Key is missing")
         openai_interface_gpt4o = OpenAIInterface(
             model="gpt-4o",
@@ -432,7 +432,7 @@ def create_model_map(
     
     # Try to initialize Gemini interface
     try:
-        if not google_api_key:
+        if not google_api_key or not google_api_key.strip():
             raise ValueError("Google API Key is missing")
         gemini_interface = GeminiInterface(
             model="gemini-1.5-pro",
