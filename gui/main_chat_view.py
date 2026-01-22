@@ -7,6 +7,8 @@ Window 2: Chat interface with budget monitoring and controls.
 import customtkinter as ctk
 from typing import Optional, Callable
 import time
+import queue
+from .backend_bridge import MosaicBridge
 
 
 class MainChatView(ctk.CTk):
@@ -42,12 +44,25 @@ class MainChatView(ctk.CTk):
         self.smart_router_enabled = True
         self.debug_visible = False
         
+        # Message queue for backend communication
+        self.message_queue = queue.Queue()
+        
+        # Backend bridge (lazy initialization)
+        self.backend = None
+        self.loaded_context = []
+        
         # Window configuration
         self.title("Mosaic - Infinite Context Chat")
         self.geometry("1200x800")
         self.configure(fg_color=self.BG_COLOR)
         
         self._create_widgets()
+        
+        # Initialize backend
+        self._initialize_backend()
+        
+        # Start queue checker
+        self._check_queue()
     
     def _create_widgets(self):
         """Create and layout all widgets."""
@@ -357,22 +372,98 @@ class MainChatView(ctk.CTk):
             self.debug_log.insert("end", f"[{timestamp}] {message}\n")
             self.debug_log.see("end")
     
+    def _initialize_backend(self):
+        """Initialize the backend bridge."""
+        try:
+            self.backend = MosaicBridge(
+                config=self.config,
+                message_callback=self._handle_backend_message
+            )
+            self._add_system_message("✅ Backend initialized successfully")
+        except Exception as e:
+            self._add_system_message(f"⚠️ Backend initialization failed: {str(e)}")
+            self._add_debug_message(f"[ERROR] {str(e)}")
+    
+    def _handle_backend_message(self, message: tuple):
+        """
+        Handle message from backend (called from background thread).
+        
+        Args:
+            message: Tuple of (type, data)
+        """
+        # Add to queue for thread-safe processing
+        self.message_queue.put(message)
+    
+    def _check_queue(self):
+        """Check message queue and update GUI (runs in main thread)."""
+        try:
+            # Process all pending messages
+            while True:
+                try:
+                    message = self.message_queue.get_nowait()
+                    self._process_backend_message(message)
+                except queue.Empty:
+                    break
+        except Exception as e:
+            print(f"Error checking queue: {e}")
+        
+        # Schedule next check
+        self.after(100, self._check_queue)
+    
+    def _process_backend_message(self, message: tuple):
+        """
+        Process a message from the backend.
+        
+        Args:
+            message: Tuple of (type, data)
+        """
+        msg_type, data = message
+        
+        if msg_type == "LOG":
+            # Debug log message
+            self._add_debug_message(data)
+        
+        elif msg_type == "BUDGET":
+            # Update budget
+            self.update_budget(self.current_spend + data, self.budget_limit)
+        
+        elif msg_type == "DONE":
+            # Final answer
+            self._add_assistant_message(data)
+            
+            # Check hive state
+            if self.backend:
+                hive_state = self.backend.get_hive_state()
+                if hive_state:
+                    self._add_debug_message(f"[HIVE] Memory state: {hive_state}")
+        
+        elif msg_type == "ERROR":
+            # Error message
+            self._add_system_message(f"❌ Error: {data}")
+            self._add_debug_message(f"[ERROR] {data}")
+        
+        elif msg_type == "HIVE":
+            # Hive memory update
+            self._add_debug_message(f"[HIVE] Updated: {data}")
+    
     def _simulate_response(self, user_message: str):
-        """Simulate AI response (placeholder)."""
-        # Simulate budget update
-        self.update_budget(self.current_spend + 0.15, self.budget_limit)
+        """Run actual RLM query via backend."""
+        if not self.backend:
+            self._add_system_message("⚠️ Backend not available - using simulated response")
+            response = "Backend not initialized. Please check API keys and restart."
+            self._add_assistant_message(response)
+            return
         
-        # Add debug messages
-        if self.debug_visible:
-            self._add_debug_message(f"[USER] Query received: {user_message[:50]}...")
-            self._add_debug_message("[ROUTER] Analyzing content fingerprint...")
-            self._add_debug_message("[ROUTER] Selected model: gpt-4o")
-            self._add_debug_message("[REPL] Executing context exploration...")
-            self._add_debug_message("[SUB-LLM] Processing chunk 1/3...")
+        if self.backend.is_busy():
+            self._add_system_message("⚠️ Backend is busy - please wait for current query to complete")
+            return
         
-        # Add response
-        response = "This is a simulated response. In the full implementation, this would be powered by the RLM framework with infinite context processing capabilities."
-        self._add_assistant_message(response)
+        # Run query via backend
+        self.backend.run_query(
+            user_prompt=user_message,
+            context=self.loaded_context,
+            use_router=self.smart_router_enabled
+        )
     
     def update_budget(self, current: float, maximum: float):
         """
