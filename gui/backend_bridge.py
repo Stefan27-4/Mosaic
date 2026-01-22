@@ -210,13 +210,15 @@ class MosaicBridge:
             if isinstance(trajectory, list):
                 iterations = trajectory
                 # Get subcall count from the last iteration if it exists
+                # Note: In list format, each iteration has its own 'subcalls' field
                 subcall_count = 0
                 if iterations and isinstance(iterations[-1], dict):
                     subcall_count = iterations[-1].get("subcalls", 0)
-                # Cost tracking isn't available in the list format
+                # Cost tracking isn't available in the list format (by design)
+                # RLM returns trajectory as list of iterations without aggregated cost
                 cost = 0
             else:
-                # Existing logic for dict
+                # Existing logic for dict format (legacy or alternative format)
                 iterations = trajectory.get("iterations", [])
                 subcall_count = trajectory.get("subcall_count", 0)
                 cost = trajectory.get("estimated_cost", 0)
