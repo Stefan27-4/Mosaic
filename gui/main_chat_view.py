@@ -12,7 +12,9 @@ import os
 import traceback
 from tkinter import filedialog
 from rlm.utils import load_pdf, chunk_text
+from rlm.github_loader import fetch_github_repo
 from .backend_bridge import MosaicBridge
+from .github_import_dialog import GitHubImportDialog
 
 
 class MainChatView(ctk.CTk):
@@ -149,6 +151,20 @@ class MainChatView(ctk.CTk):
             command=self._on_load_document
         )
         load_doc_btn.pack(fill="x", padx=15, pady=5)
+        
+        # GitHub Import Button
+        github_btn = ctk.CTkButton(
+            self.sidebar,
+            text="🐙 Import from GitHub",
+            font=("Segoe UI", 13),
+            height=40,
+            fg_color=self.ACCENT_COLOR,
+            hover_color="#7C3AED",
+            text_color=self.TEXT_COLOR,
+            corner_radius=8,
+            command=self._on_import_github
+        )
+        github_btn.pack(fill="x", padx=15, pady=5)
         
         # Smart Router Toggle
         router_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -380,6 +396,125 @@ class MainChatView(ctk.CTk):
         except Exception as e:
             # Catch any unexpected errors
             error_msg = f"Unexpected error during document loading: {str(e)}"
+            self._add_system_message(f"❌ {error_msg}")
+            self._add_debug_message(f"[ERROR] {error_msg}")
+            self._add_debug_message(f"[TRACEBACK] {traceback.format_exc()}")
+    
+    def _on_import_github(self):
+        """Handle GitHub import button click."""
+        def handle_import(params):
+            """Handle the actual import process."""
+            try:
+                # Extract parameters
+                repo_url = params['repo_url']
+                branch = params.get('branch')
+                file_extensions = params.get('file_extensions')
+                path_filter = params.get('path_filter')
+                github_token = params.get('github_token')
+                
+                # Log the import attempt
+                self._add_debug_message(f"[GITHUB] Starting import from: {repo_url}")
+                if branch:
+                    self._add_debug_message(f"[GITHUB] Branch: {branch}")
+                if file_extensions:
+                    self._add_debug_message(f"[GITHUB] File extensions: {', '.join(file_extensions)}")
+                if path_filter:
+                    self._add_debug_message(f"[GITHUB] Path filter: {path_filter}")
+                
+                # Fetch files from GitHub
+                try:
+                    files = fetch_github_repo(
+                        repo_url=repo_url,
+                        branch=branch,
+                        file_extensions=file_extensions,
+                        path_filter=path_filter,
+                        github_token=github_token,
+                        max_file_size=100000,  # 100KB
+                        max_total_files=100
+                    )
+                    
+                    self._add_debug_message(f"[GITHUB] Fetched {len(files)} files from repository")
+                    
+                except ValueError as e:
+                    error_msg = str(e)
+                    dialog.show_error(error_msg)
+                    self._add_system_message(f"❌ {error_msg}")
+                    self._add_debug_message(f"[GITHUB ERROR] {error_msg}")
+                    return
+                except PermissionError as e:
+                    error_msg = str(e)
+                    dialog.show_error(error_msg)
+                    self._add_system_message(f"❌ {error_msg}")
+                    self._add_debug_message(f"[GITHUB ERROR] {error_msg}")
+                    return
+                except RuntimeError as e:
+                    error_msg = str(e)
+                    dialog.show_error(error_msg)
+                    self._add_system_message(f"❌ {error_msg}")
+                    self._add_debug_message(f"[GITHUB ERROR] {error_msg}")
+                    return
+                except Exception as e:
+                    error_msg = f"Unexpected error: {str(e)}"
+                    dialog.show_error(error_msg)
+                    self._add_system_message(f"❌ {error_msg}")
+                    self._add_debug_message(f"[GITHUB ERROR] {error_msg}")
+                    self._add_debug_message(f"[TRACEBACK] {traceback.format_exc()}")
+                    return
+                
+                # Convert files to context chunks
+                total_size = 0
+                for file_info in files:
+                    # Format content with file path header
+                    formatted_content = f"=== File: {file_info['path']} ===\n{file_info['content']}\n"
+                    
+                    # Chunk the file content
+                    chunks = chunk_text(
+                        formatted_content,
+                        chunk_size=self.PDF_CHUNK_SIZE,
+                        overlap=self.PDF_CHUNK_OVERLAP
+                    )
+                    
+                    # Add to context
+                    self.loaded_context.extend(chunks)
+                    total_size += file_info['size']
+                
+                # Extract repo name for display
+                try:
+                    from rlm.github_loader import parse_github_url
+                    owner, repo_name = parse_github_url(repo_url)
+                    repo_display = f"{owner}/{repo_name}"
+                except:
+                    repo_display = repo_url
+                
+                # Add to loaded documents list
+                self.loaded_documents.append(f"GitHub: {repo_display}")
+                
+                # Calculate total size in KB
+                total_size_kb = total_size / 1024
+                
+                # Show success messages
+                success_msg = f"✅ Loaded {len(files)} files ({total_size_kb:.1f} KB) from {repo_display}"
+                dialog.show_success(success_msg)
+                self._add_system_message(success_msg)
+                self._add_debug_message(f"[GITHUB] Total context chunks: {len(self.loaded_context)}")
+                self._add_debug_message(f"[GITHUB] Loaded sources: {', '.join(self.loaded_documents)}")
+                
+                # Show summary if multiple sources loaded
+                if len(self.loaded_documents) > 1:
+                    self._add_system_message(f"📚 Total sources loaded: {len(self.loaded_documents)}")
+                
+            except Exception as e:
+                error_msg = f"Unexpected error during GitHub import: {str(e)}"
+                dialog.show_error(error_msg)
+                self._add_system_message(f"❌ {error_msg}")
+                self._add_debug_message(f"[GITHUB ERROR] {error_msg}")
+                self._add_debug_message(f"[TRACEBACK] {traceback.format_exc()}")
+        
+        # Open the GitHub import dialog
+        try:
+            dialog = GitHubImportDialog(self, on_import=handle_import)
+        except Exception as e:
+            error_msg = f"Failed to open GitHub import dialog: {str(e)}"
             self._add_system_message(f"❌ {error_msg}")
             self._add_debug_message(f"[ERROR] {error_msg}")
             self._add_debug_message(f"[TRACEBACK] {traceback.format_exc()}")
