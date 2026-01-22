@@ -24,6 +24,7 @@ Instead of feeding long prompts directly into the LLM's context window, RLMs:
 - **⚡ Parallel Processing**: 10-20x speedup with asynchronous MapReduce (NEW!)
 - **🧠 Hive Mind**: Shared state across parallel sub-agents for collaborative processing (NEW!)
 - **🛡️ Adaptive Validation**: Tiered validation with peer review and self-correction (NEW!)
+- **💾 Smart Caching**: SQLite-based response caching to reduce costs and improve performance (NEW!)
 
 ## Installation
 
@@ -657,4 +658,111 @@ print(f"Validation cost: ${agent.validation_cost_spent:.2f}")
 For detailed information, see:
 - **[Resilience Guide](docs/RESILIENCE_GUIDE.md)** - Complete documentation
 - **[Examples](examples/resilience_example.py)** - Working code examples
+
+## 7. Caching Layer (Smart Memorization)
+
+The Mosaic Caching Layer provides SQLite-based response caching to optimize performance and reduce API costs by avoiding duplicate calls.
+
+### Basic Caching
+
+```python
+from rlm import get_cache
+
+cache = get_cache()
+
+# Responses are automatically cached on first call
+# Subsequent identical calls return cached responses instantly
+
+# View cache statistics
+savings = cache.get_total_savings()
+print(f"Tokens saved: {savings['total_tokens_saved']:,}")
+print(f"Cost savings: ${savings['estimated_cost_savings_usd']:.2f}")
+```
+
+### How It Works
+
+The cache uses consistent SHA256 hashing of request parameters:
+
+- **Normalized Inputs**: Whitespace and formatting differences don't affect caching
+- **Smart Keys**: Hashes based on prompt + model + temperature + system_prompt
+- **Persistent Storage**: SQLite database at `~/.mosaic/cache.db`
+- **Automatic Updates**: Last accessed timestamp tracked for analytics
+
+### Integration with LLM Interfaces
+
+Caching works automatically with all LLM calls:
+
+```python
+from rlm import OpenAIInterface
+
+llm = OpenAIInterface(model="gpt-4o")
+
+# First call - hits API and caches response
+response1 = llm.query("Explain quantum computing", use_cache=True)
+
+# Second call - returns cached response instantly (no API call!)
+response2 = llm.query("Explain quantum computing", use_cache=True)
+
+# Disable caching for specific calls
+response3 = llm.query("Explain quantum computing", use_cache=False)
+```
+
+### Temperature Considerations
+
+Different temperatures create different cache entries:
+
+```python
+# These are cached separately
+response_deterministic = llm.query("Hello", temperature=0.0)
+response_creative = llm.query("Hello", temperature=0.7)
+
+# Use temperature=0.0 for maximum cache hits
+```
+
+### Cache Management
+
+```python
+from rlm import get_cache
+
+cache = get_cache()
+
+# Get detailed statistics
+stats = cache.get_cache_stats()
+print(f"Total entries: {stats['total_cache_entries']}")
+print(f"Unique models: {stats['unique_models']}")
+
+# Per-model breakdown
+for model_stat in stats['per_model_stats']:
+    print(f"{model_stat['model_id']}: {model_stat['entry_count']} entries")
+
+# Clear old entries
+deleted = cache.clear_cache(older_than_days=30)
+print(f"Deleted {deleted} old entries")
+
+# Optimize database
+cache.vacuum()
+```
+
+### Performance Benefits
+
+The cache provides significant performance improvements:
+
+- **Speed**: Instant responses for cached queries (<1ms vs 1-3s API call)
+- **Cost**: Avoid duplicate API calls, reducing token costs
+- **Reliability**: Cached responses available even during API outages
+- **Consistency**: Same query returns same result (with temperature=0.0)
+
+### Best Practices
+
+1. **Use temperature=0.0** for deterministic responses and maximum cache hits
+2. **Monitor savings** regularly with `cache.get_total_savings()`
+3. **Periodic cleanup** to remove old entries and optimize database
+4. **Disable selectively** when you need fresh responses
+
+### Complete Documentation
+
+For detailed information, see:
+- **[Caching Guide](docs/CACHING_GUIDE.md)** - Complete documentation
+- **[Examples](examples/cache_example.py)** - Working code examples
+
 

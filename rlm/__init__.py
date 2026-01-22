@@ -37,6 +37,12 @@ from .resilience import (
     ValidationResult,
     detect_task_type,
 )
+from .cache import (
+    MosaicCache,
+    get_cache,
+    with_cache,
+    cache_context,
+)
 
 __version__ = "0.1.0"
 
@@ -72,4 +78,8 @@ __all__ = [
     "TaskType",
     "ValidationResult",
     "detect_task_type",
+    "MosaicCache",
+    "get_cache",
+    "with_cache",
+    "cache_context",
 ]
