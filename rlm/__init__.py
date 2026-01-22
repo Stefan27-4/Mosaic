@@ -17,6 +17,7 @@ from .llm_interface import (
 )
 from .prompts import RLM_SYSTEM_PROMPT, RLM_SYSTEM_PROMPT_CONSERVATIVE, RLM_NO_SUBCALLS_PROMPT
 from .utils import chunk_text, estimate_tokens, format_context_info, load_document, load_pdf
+from .github_loader import fetch_github_repo, parse_github_url
 from .routing import (
     HeuristicRoutingEngine,
     route_text,
@@ -83,6 +84,8 @@ __all__ = [
     "format_context_info",
     "load_document",
     "load_pdf",
+    "fetch_github_repo",
+    "parse_github_url",
     "HeuristicRoutingEngine",
     "route_text",
     "classify_chunk",
