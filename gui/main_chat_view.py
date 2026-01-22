@@ -8,6 +8,10 @@ import customtkinter as ctk
 from typing import Optional, Callable
 import time
 import queue
+import os
+import traceback
+from tkinter import filedialog
+from rlm.utils import load_pdf, chunk_text
 from .backend_bridge import MosaicBridge
 
 
@@ -28,6 +32,10 @@ class MainChatView(ctk.CTk):
     CARD_COLOR = "#1E293B"  # Dark Slate
     ACCENT_COLOR = "#8B5CF6"  # Vivid Purple
     TEXT_COLOR = "#F8FAFC"  # Off-white
+    
+    # Document Loading Configuration
+    PDF_CHUNK_SIZE = 4000  # Characters per chunk
+    PDF_CHUNK_OVERLAP = 200  # Character overlap between chunks
     
     def __init__(self, config: Optional[dict] = None):
         """
@@ -50,6 +58,7 @@ class MainChatView(ctk.CTk):
         # Backend bridge (lazy initialization)
         self.backend = None
         self.loaded_context = []
+        self.loaded_documents = []  # Track loaded document names
         
         # Window configuration
         self.title("Mosaic - Infinite Context Chat")
@@ -299,8 +308,81 @@ class MainChatView(ctk.CTk):
     
     def _on_load_document(self):
         """Handle document loading."""
-        # In real implementation, would open file dialog
-        self._add_system_message("📄 Document loading feature - Coming soon!")
+        try:
+            # Open file dialog for PDF selection
+            file_path = filedialog.askopenfilename(
+                title="Select PDF Document",
+                filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
+                parent=self
+            )
+            
+            # Check if user cancelled
+            if not file_path:
+                self._add_debug_message("[LOAD] Document loading cancelled by user")
+                return
+            
+            # Extract filename for display
+            filename = os.path.basename(file_path)
+            
+            # Show loading message
+            self._add_system_message(f"📄 Loading: {filename}...")
+            self._add_debug_message(f"[LOAD] Starting PDF extraction from: {file_path}")
+            
+            # Extract text from PDF
+            try:
+                pdf_text = load_pdf(file_path)
+                self._add_debug_message(f"[LOAD] Extracted {len(pdf_text)} characters from PDF")
+            except FileNotFoundError as e:
+                self._add_system_message(f"❌ {str(e)}")
+                self._add_debug_message(f"[ERROR] {str(e)}")
+                return
+            except ValueError as e:
+                self._add_system_message(f"❌ {str(e)}")
+                self._add_debug_message(f"[ERROR] {str(e)}")
+                return
+            except Exception as e:
+                error_msg = f"Failed to load PDF: {str(e)}"
+                self._add_system_message(f"❌ {error_msg}")
+                self._add_debug_message(f"[ERROR] {error_msg}")
+                return
+            
+            # Chunk the text
+            try:
+                chunks = chunk_text(
+                    pdf_text, 
+                    chunk_size=self.PDF_CHUNK_SIZE, 
+                    overlap=self.PDF_CHUNK_OVERLAP
+                )
+                self._add_debug_message(
+                    f"[LOAD] Split into {len(chunks)} chunks "
+                    f"(size={self.PDF_CHUNK_SIZE}, overlap={self.PDF_CHUNK_OVERLAP})"
+                )
+            except Exception as e:
+                error_msg = f"Failed to chunk text: {str(e)}"
+                self._add_system_message(f"❌ {error_msg}")
+                self._add_debug_message(f"[ERROR] {error_msg}")
+                return
+            
+            # Add chunks to loaded context
+            self.loaded_context.extend(chunks)
+            self.loaded_documents.append(filename)
+            
+            # Show success message
+            success_msg = f"✅ Loaded {len(chunks)} chunks from {filename}"
+            self._add_system_message(success_msg)
+            self._add_debug_message(f"[LOAD] Total context chunks: {len(self.loaded_context)}")
+            self._add_debug_message(f"[LOAD] Loaded documents: {', '.join(self.loaded_documents)}")
+            
+            # Show summary of loaded documents
+            if len(self.loaded_documents) > 1:
+                self._add_system_message(f"📚 Total documents loaded: {len(self.loaded_documents)}")
+            
+        except Exception as e:
+            # Catch any unexpected errors
+            error_msg = f"Unexpected error during document loading: {str(e)}"
+            self._add_system_message(f"❌ {error_msg}")
+            self._add_debug_message(f"[ERROR] {error_msg}")
+            self._add_debug_message(f"[TRACEBACK] {traceback.format_exc()}")
     
     def _on_send_message(self):
         """Handle send button click."""

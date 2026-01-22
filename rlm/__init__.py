@@ -16,7 +16,7 @@ from .llm_interface import (
     create_model_map,
 )
 from .prompts import RLM_SYSTEM_PROMPT, RLM_SYSTEM_PROMPT_CONSERVATIVE, RLM_NO_SUBCALLS_PROMPT
-from .utils import chunk_text, estimate_tokens, format_context_info, load_document
+from .utils import chunk_text, estimate_tokens, format_context_info, load_document, load_pdf
 from .routing import (
     HeuristicRoutingEngine,
     route_text,
@@ -82,6 +82,7 @@ __all__ = [
     "estimate_tokens",
     "format_context_info",
     "load_document",
+    "load_pdf",
     "HeuristicRoutingEngine",
     "route_text",
     "classify_chunk",
