@@ -117,7 +117,8 @@ def fetch_github_repo(
             sha = ref.commit.sha
         else:
             # Use default branch
-            sha = repo.default_branch
+            default_branch = repo.get_branch(repo.default_branch)
+            sha = default_branch.commit.sha
     except GithubException as e:
         raise ValueError(f"Branch '{branch}' not found in repository")
     
