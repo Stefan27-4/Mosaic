@@ -436,12 +436,12 @@ def create_model_map(
             raise ValueError("Google API Key is missing")
         
         # Try primary model first (gemini-2.5-pro)
-        gemini_model = None
         gemini_config = {
             "api_key": google_api_key,
             "max_tokens": 8192
         }
         
+        primary_error = None
         try:
             gemini_interface = GeminiInterface(
                 model="gemini-2.5-pro",
@@ -449,7 +449,8 @@ def create_model_map(
             )
             gemini_model = "gemini-2.5-pro"
             logger.info("Successfully initialized Google Gemini interface with gemini-2.5-pro")
-        except (ImportError, ValueError) as e:
+        except Exception as e:
+            primary_error = e
             logger.warning(f"Failed to initialize with gemini-2.5-pro: {e}, trying fallback to gemini-2.5-flash")
             # Fallback to gemini-2.5-flash
             try:
@@ -459,9 +460,11 @@ def create_model_map(
                 )
                 gemini_model = "gemini-2.5-flash"
                 logger.info("Successfully initialized Google Gemini interface with gemini-2.5-flash")
-            except (ImportError, ValueError) as fallback_error:
+            except Exception as fallback_error:
                 logger.error(f"Failed to initialize with gemini-2.5-flash: {fallback_error}")
-                raise RuntimeError(f"Both gemini-2.5-pro and gemini-2.5-flash failed to initialize")
+                raise RuntimeError(
+                    f"Both gemini-2.5-pro ({primary_error}) and gemini-2.5-flash ({fallback_error}) failed to initialize"
+                )
         
         # Profile C: Creative Director - Gemini for creative/research
         model_map["gemini-3"] = gemini_interface
