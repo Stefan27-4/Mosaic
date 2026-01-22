@@ -333,14 +333,12 @@ class MainChatView(ctk.CTk):
                 pdf_text = load_pdf(file_path)
                 self._add_debug_message(f"[LOAD] Extracted {len(pdf_text)} characters from PDF")
             except FileNotFoundError as e:
-                error_msg = f"File not found: {filename}"
-                self._add_system_message(f"❌ {error_msg}")
+                self._add_system_message(f"❌ {str(e)}")
                 self._add_debug_message(f"[ERROR] {str(e)}")
                 return
             except ValueError as e:
-                error_msg = str(e)
-                self._add_system_message(f"❌ {error_msg}")
-                self._add_debug_message(f"[ERROR] {error_msg}")
+                self._add_system_message(f"❌ {str(e)}")
+                self._add_debug_message(f"[ERROR] {str(e)}")
                 return
             except Exception as e:
                 error_msg = f"Failed to load PDF: {str(e)}"

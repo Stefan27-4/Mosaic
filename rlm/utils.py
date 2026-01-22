@@ -123,32 +123,27 @@ def load_pdf(file_path: str) -> str:
         raise FileNotFoundError(f"PDF file not found: {file_path}")
     
     try:
-        # Open the PDF file
-        doc = fitz.open(file_path)
-        
-        # Check if PDF is encrypted/password-protected
-        if doc.is_encrypted:
-            doc.close()
-            raise ValueError("PDF is password-protected and cannot be read")
-        
-        # Extract text from all pages
-        text_content = []
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            text = page.get_text()
-            if text.strip():  # Only add non-empty pages
-                text_content.append(text)
-        
-        # Close the document
-        doc.close()
-        
-        # Combine all pages with double newline separator
-        combined_text = "\n\n".join(text_content)
-        
-        if not combined_text.strip():
-            raise ValueError("PDF contains no extractable text")
-        
-        return combined_text
+        # Open the PDF file using context manager
+        with fitz.open(file_path) as doc:
+            # Check if PDF is encrypted/password-protected
+            if doc.is_encrypted:
+                raise ValueError("PDF is password-protected and cannot be read")
+            
+            # Extract text from all pages
+            text_content = []
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text = page.get_text()
+                if text.strip():  # Only add non-empty pages
+                    text_content.append(text)
+            
+            # Combine all pages with double newline separator
+            combined_text = "\n\n".join(text_content)
+            
+            if not combined_text.strip():
+                raise ValueError("PDF contains no extractable text")
+            
+            return combined_text
         
     except ValueError:
         # Re-raise our custom ValueError messages
