@@ -7,7 +7,7 @@ Provides thread-safe bridge between async RLM backend and synchronous customtkin
 import threading
 import queue
 import asyncio
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, Union, List
 import traceback
 
 
@@ -198,20 +198,35 @@ class MosaicBridge:
             except:
                 pass
     
-    def _process_trajectory(self, trajectory: dict):
+    def _process_trajectory(self, trajectory: Union[List[Dict[str, Any]], Dict[str, Any]]):
         """
         Process the RLM trajectory and send relevant messages to GUI.
         
         Args:
-            trajectory: The trajectory dict from RLM
+            trajectory: The trajectory from RLM (can be list or dict)
         """
         try:
+            # Handle both list and dict formats
+            if isinstance(trajectory, list):
+                iterations = trajectory
+                # Get subcall count from the last iteration if it exists
+                # Note: In list format, each iteration has its own 'subcalls' field
+                subcall_count = 0
+                if iterations and isinstance(iterations[-1], dict):
+                    subcall_count = iterations[-1].get("subcalls", 0)
+                # Cost tracking isn't available in the list format (by design)
+                # RLM returns trajectory as list of iterations without aggregated cost
+                cost = 0
+            else:
+                # Existing logic for dict format (legacy or alternative format)
+                iterations = trajectory.get("iterations", [])
+                subcall_count = trajectory.get("subcall_count", 0)
+                cost = trajectory.get("estimated_cost", 0)
+            
             # Send iteration count
-            iterations = trajectory.get("iterations", [])
             self._send_message(("LOG", f"[TRAJECTORY] {len(iterations)} iterations"))
             
             # Send subcall count
-            subcall_count = trajectory.get("subcall_count", 0)
             if subcall_count > 0:
                 self._send_message(("LOG", f"[SUB-CALLS] {subcall_count} recursive calls made"))
             
@@ -231,8 +246,7 @@ class MosaicBridge:
                     self._send_message(("LOG", f"[RESULT] {result_preview}..."))
             
             # Send cost estimate if available
-            if "estimated_cost" in trajectory:
-                cost = trajectory["estimated_cost"]
+            if cost > 0:
                 self._send_message(("BUDGET", cost))
         
         except Exception as e:
