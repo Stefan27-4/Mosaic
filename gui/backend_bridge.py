@@ -198,20 +198,31 @@ class MosaicBridge:
             except:
                 pass
     
-    def _process_trajectory(self, trajectory: dict):
+    def _process_trajectory(self, trajectory):
         """
         Process the RLM trajectory and send relevant messages to GUI.
         
         Args:
-            trajectory: The trajectory dict from RLM
+            trajectory: The trajectory from RLM (can be list or dict)
         """
         try:
+            # Handle both list and dict formats
+            if isinstance(trajectory, list):
+                iterations = trajectory
+                # Get subcall count from the last iteration if it exists
+                subcall_count = iterations[-1].get("subcalls", 0) if iterations else 0
+                # Cost tracking isn't in the list view yet, set to 0 or calculate manually
+                cost = 0
+            else:
+                # Existing logic for dict
+                iterations = trajectory.get("iterations", [])
+                subcall_count = trajectory.get("subcall_count", 0)
+                cost = trajectory.get("estimated_cost", 0)
+            
             # Send iteration count
-            iterations = trajectory.get("iterations", [])
             self._send_message(("LOG", f"[TRAJECTORY] {len(iterations)} iterations"))
             
             # Send subcall count
-            subcall_count = trajectory.get("subcall_count", 0)
             if subcall_count > 0:
                 self._send_message(("LOG", f"[SUB-CALLS] {subcall_count} recursive calls made"))
             
@@ -231,8 +242,7 @@ class MosaicBridge:
                     self._send_message(("LOG", f"[RESULT] {result_preview}..."))
             
             # Send cost estimate if available
-            if "estimated_cost" in trajectory:
-                cost = trajectory["estimated_cost"]
+            if cost > 0:
                 self._send_message(("BUDGET", cost))
         
         except Exception as e:
