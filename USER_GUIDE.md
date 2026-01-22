@@ -765,4 +765,154 @@ For detailed information, see:
 - **[Caching Guide](docs/CACHING_GUIDE.md)** - Complete documentation
 - **[Examples](examples/cache_example.py)** - Working code examples
 
+## Token Optimization
+
+Accurate token counting and dynamic chunk size calculation for optimal performance.
+
+### Features
+
+- **Precise Token Counting**: Uses `tiktoken` for accurate counts
+- **Cost Estimation**: Calculate projected API costs before processing
+- **Dynamic Chunking**: Automatically optimizes chunk sizes based on model capacity
+- **Task-Specific Tuning**: Different strategies for code, summarization, and general tasks
+
+### Basic Token Counting
+
+```python
+from rlm import count_tokens, estimate_cost, get_model_limit
+
+# Count tokens accurately
+text = "Hello, world! This is a sample document."
+tokens = count_tokens(text, model="gpt-4o")
+print(f"Tokens: {tokens}")
+
+# Estimate cost
+cost = estimate_cost(text, model="gpt-4o")
+print(f"Cost: ${cost:.6f}")
+
+# Get model context limit
+limit = get_model_limit("gpt-4o")
+print(f"GPT-4o limit: {limit:,} tokens")
+```
+
+### Dynamic Chunk Sizing
+
+```python
+from rlm import smart_chunk_text, OptTaskType
+
+# Load document
+with open("large_document.txt") as f:
+    document = f.read()
+
+# Smart chunking for summarization (smaller chunks)
+chunks = smart_chunk_text(
+    text=document,
+    model="gpt-4o",
+    task_type=OptTaskType.SUMMARIZATION,
+    overlap_ratio=0.1  # 10% overlap
+)
+
+print(f"Split into {len(chunks)} optimized chunks")
+```
+
+### Task Types
+
+```python
+from rlm import OptTaskType, calculate_chunk_size
+
+# Different task types optimize differently
+models = ["gpt-4o", "claude-opus-4.5", "gemini-1.5-pro"]
+
+for model in models:
+    code_size = calculate_chunk_size(model, OptTaskType.CODE_ANALYSIS)
+    summ_size = calculate_chunk_size(model, OptTaskType.SUMMARIZATION)
+    gen_size = calculate_chunk_size(model, OptTaskType.GENERAL)
+    
+    print(f"{model}:")
+    print(f"  Code Analysis: {code_size:,} tokens (80% of capacity)")
+    print(f"  Summarization: {summ_size:,} tokens (20% of capacity)")
+    print(f"  General: {gen_size:,} tokens (40% of capacity)")
+```
+
+### Supported Models
+
+| Model ID | Context Limit | Cost per 1M Tokens |
+|----------|--------------|-------------------|
+| claude-opus-4.5 | 200,000 | $15.00 |
+| gpt-5.2 (gpt-4o) | 128,000 | $5.00 |
+| gemini-3 (gemini-1.5-pro) | 2,000,000 | $1.25 |
+| grok-4.1 | 128,000 | $2.00 |
+| deepseek-3.2 | 64,000 | $0.50 |
+
+### Advanced Usage
+
+```python
+from rlm import TokenGatekeeper, ChunkAutoTuner, OptTaskType
+
+# Get singleton instances
+gatekeeper = TokenGatekeeper()
+tuner = ChunkAutoTuner()
+
+# Accurate token counting
+tokens = gatekeeper.count(text, model="gpt-4o")
+
+# Calculate optimal chunk size
+chunk_size = tuner.calculate_optimal_chunk_size(
+    model_id="gpt-4o",
+    task_type=OptTaskType.CODE_ANALYSIS
+)
+
+# Get optimally-sized chunks with custom overlap
+chunks = tuner.get_optimal_chunks(
+    text=document,
+    model_id="gpt-4o",
+    task_type=OptTaskType.GENERAL,
+    overlap_ratio=0.15  # 15% overlap
+)
+```
+
+### Cost-Aware Processing
+
+```python
+from rlm import count_tokens, estimate_cost, get_model_limit
+
+document = "...large document..."
+budget = 1.00  # $1 budget
+
+# Find cheapest model within budget
+models = ["gpt-4o", "gpt-4o-mini", "claude-opus-4.5", "deepseek-3.2"]
+
+for model in models:
+    tokens = count_tokens(document, model)
+    cost = estimate_cost(document, model)
+    limit = get_model_limit(model)
+    
+    fits = tokens <= limit
+    within_budget = cost <= budget
+    
+    if fits and within_budget:
+        print(f"✓ {model}: {tokens:,} tokens, ${cost:.4f}")
+    elif not fits:
+        print(f"✗ {model}: Too large ({tokens:,} > {limit:,})")
+    elif not within_budget:
+        print(f"✗ {model}: Over budget (${cost:.4f} > ${budget:.2f})")
+```
+
+### Best Practices
+
+1. **Always use accurate token counting** for production workloads
+2. **Match task type to your use case**:
+   - `CODE_ANALYSIS`: Large context for code review
+   - `SUMMARIZATION`: Small chunks for parallel processing
+   - `GENERAL`: Balanced approach
+3. **Test different overlap ratios** (5-30%) to find the sweet spot
+4. **Monitor costs** before processing large documents
+5. **Use smart_chunk_text()** for convenience in most cases
+
+### Complete Documentation
+
+For detailed information, see:
+- **[Token Optimization Guide](docs/TOKEN_OPTIMIZATION_GUIDE.md)** - Complete documentation
+- **[Examples](examples/token_optimization_example.py)** - Working code examples
+
 

@@ -43,6 +43,19 @@ from .cache import (
     with_cache,
     cache_context,
 )
+from .token_optimizer import (
+    TokenGatekeeper,
+    ChunkAutoTuner,
+    TaskType as OptTaskType,
+    get_token_gatekeeper,
+    get_chunk_auto_tuner,
+    count_tokens,
+    estimate_cost,
+    get_model_limit,
+    calculate_chunk_size,
+    smart_chunk_text,
+    MODEL_SPECS,
+)
 
 __version__ = "0.1.0"
 
@@ -82,4 +95,15 @@ __all__ = [
     "get_cache",
     "with_cache",
     "cache_context",
+    "TokenGatekeeper",
+    "ChunkAutoTuner",
+    "OptTaskType",
+    "get_token_gatekeeper",
+    "get_chunk_auto_tuner",
+    "count_tokens",
+    "estimate_cost",
+    "get_model_limit",
+    "calculate_chunk_size",
+    "smart_chunk_text",
+    "MODEL_SPECS",
 ]
