@@ -6,8 +6,12 @@ OpenAI, Anthropic, and Google Gemini models.
 """
 
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class LLMInterface(ABC):
@@ -359,6 +363,10 @@ def create_model_map(
     This helper function creates the default mapping used by the routing engine.
     Users can provide API keys or rely on environment variables.
     
+    Only initializes models for which API keys are available. If a provider's
+    initialization fails (e.g., missing API key), it logs a warning and skips
+    that provider instead of crashing.
+    
     Args:
         openai_api_key: OpenAI API key (optional, uses env var if None)
         anthropic_api_key: Anthropic API key (optional, uses env var if None)
@@ -367,6 +375,9 @@ def create_model_map(
     Returns:
         Dictionary mapping routing model IDs to LLM interface instances
         
+    Raises:
+        RuntimeError: If no models could be initialized successfully
+        
     Example:
         >>> from rlm import route_text, create_model_map
         >>> model_map = create_model_map()
@@ -374,42 +385,79 @@ def create_model_map(
         >>> llm = model_map[model_id]
         >>> response = llm.query("Explain this SQL query")
     """
-    return {
-        # Profile A: Architect - Claude Opus for complex code/legal
-        "claude-opus-4.5": AnthropicInterface(
+    model_map = {}
+    initialized_providers = []
+    failed_providers = []
+    
+    # Try to initialize Anthropic interface
+    try:
+        anthropic_interface = AnthropicInterface(
             model="claude-3-5-sonnet-20241022",
             api_key=anthropic_api_key,
             max_tokens=8192
-        ),
-        
-        # Profile B: Project Manager - GPT-4o for SQL/planning
-        "gpt-5.2": OpenAIInterface(
+        )
+        # Profile A: Architect - Claude for complex code/legal
+        model_map["claude-opus-4.5"] = anthropic_interface
+        initialized_providers.append("Anthropic (claude-opus-4.5)")
+        logger.info("Successfully initialized Anthropic interface")
+    except (ImportError, Exception) as e:
+        logger.warning(f"Failed to initialize Anthropic interface: {e}")
+        failed_providers.append(f"Anthropic ({type(e).__name__}: {str(e)})")
+    
+    # Try to initialize OpenAI interface
+    try:
+        openai_interface_gpt4o = OpenAIInterface(
             model="gpt-4o",
             api_key=openai_api_key,
             max_tokens=16384
-        ),
-        
-        # Profile C: Creative Director - Gemini for creative/research
-        "gemini-3": GeminiInterface(
+        )
+        openai_interface_gpt4o_mini = OpenAIInterface(
+            model="gpt-4o-mini",
+            api_key=openai_api_key,
+            max_tokens=8192
+        )
+        # Profile B: Project Manager - GPT-4o for SQL/planning
+        model_map["gpt-5.2"] = openai_interface_gpt4o
+        # Profile D: News Analyst - GPT-4o-mini for news/social (Grok not publicly available)
+        model_map["grok-4.1"] = openai_interface_gpt4o_mini
+        # Profile E: Efficiency Expert - GPT-4o-mini for math/default (DeepSeek not publicly available)
+        model_map["deepseek-3.2"] = openai_interface_gpt4o_mini
+        initialized_providers.append("OpenAI (gpt-5.2, grok-4.1, deepseek-3.2)")
+        logger.info("Successfully initialized OpenAI interface")
+    except (ImportError, Exception) as e:
+        logger.warning(f"Failed to initialize OpenAI interface: {e}")
+        failed_providers.append(f"OpenAI ({type(e).__name__}: {str(e)})")
+    
+    # Try to initialize Gemini interface
+    try:
+        gemini_interface = GeminiInterface(
             model="gemini-1.5-pro",
             api_key=google_api_key,
             max_tokens=8192
-        ),
-        
-        # Profile D: News Analyst - GPT-4o-mini for news/social (Grok not publicly available)
-        # Note: Can be replaced with Grok API when available
-        "grok-4.1": OpenAIInterface(
-            model="gpt-4o-mini",
-            api_key=openai_api_key,
-            max_tokens=8192
-        ),
-        
-        # Profile E: Efficiency Expert - GPT-4o-mini for math/default (DeepSeek not publicly available)
-        # Note: Can be replaced with DeepSeek API when available
-        "deepseek-3.2": OpenAIInterface(
-            model="gpt-4o-mini",
-            api_key=openai_api_key,
-            max_tokens=8192
-        ),
-    }
+        )
+        # Profile C: Creative Director - Gemini for creative/research
+        model_map["gemini-3"] = gemini_interface
+        initialized_providers.append("Google Gemini (gemini-3)")
+        logger.info("Successfully initialized Google Gemini interface")
+    except (ImportError, Exception) as e:
+        logger.warning(f"Failed to initialize Google Gemini interface: {e}")
+        failed_providers.append(f"Google Gemini ({type(e).__name__}: {str(e)})")
+    
+    # Ensure at least one model was initialized
+    if not model_map:
+        error_msg = (
+            "Failed to initialize any LLM providers. Please ensure you have at least one valid API key configured.\n"
+            f"Failed providers:\n" + "\n".join(f"  - {p}" for p in failed_providers)
+        )
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+    
+    # Log summary
+    logger.info(f"Model map initialized with {len(model_map)} models from {len(initialized_providers)} provider(s)")
+    logger.info(f"Successfully initialized: {', '.join(initialized_providers)}")
+    if failed_providers:
+        logger.info(f"Skipped providers: {', '.join(failed_providers)}")
+    
+    return model_map
+
 
