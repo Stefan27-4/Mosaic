@@ -9,6 +9,7 @@ from typing import Optional, Callable
 import time
 import queue
 import os
+import traceback
 from tkinter import filedialog
 from rlm.utils import load_pdf, chunk_text
 from .backend_bridge import MosaicBridge
@@ -31,6 +32,10 @@ class MainChatView(ctk.CTk):
     CARD_COLOR = "#1E293B"  # Dark Slate
     ACCENT_COLOR = "#8B5CF6"  # Vivid Purple
     TEXT_COLOR = "#F8FAFC"  # Off-white
+    
+    # Document Loading Configuration
+    PDF_CHUNK_SIZE = 4000  # Characters per chunk
+    PDF_CHUNK_OVERLAP = 200  # Character overlap between chunks
     
     def __init__(self, config: Optional[dict] = None):
         """
@@ -344,11 +349,16 @@ class MainChatView(ctk.CTk):
                 return
             
             # Chunk the text
-            chunk_size = 4000
-            overlap = 200
             try:
-                chunks = chunk_text(pdf_text, chunk_size=chunk_size, overlap=overlap)
-                self._add_debug_message(f"[LOAD] Split into {len(chunks)} chunks (size={chunk_size}, overlap={overlap})")
+                chunks = chunk_text(
+                    pdf_text, 
+                    chunk_size=self.PDF_CHUNK_SIZE, 
+                    overlap=self.PDF_CHUNK_OVERLAP
+                )
+                self._add_debug_message(
+                    f"[LOAD] Split into {len(chunks)} chunks "
+                    f"(size={self.PDF_CHUNK_SIZE}, overlap={self.PDF_CHUNK_OVERLAP})"
+                )
             except Exception as e:
                 error_msg = f"Failed to chunk text: {str(e)}"
                 self._add_system_message(f"❌ {error_msg}")
@@ -374,7 +384,6 @@ class MainChatView(ctk.CTk):
             error_msg = f"Unexpected error during document loading: {str(e)}"
             self._add_system_message(f"❌ {error_msg}")
             self._add_debug_message(f"[ERROR] {error_msg}")
-            import traceback
             self._add_debug_message(f"[TRACEBACK] {traceback.format_exc()}")
     
     def _on_send_message(self):

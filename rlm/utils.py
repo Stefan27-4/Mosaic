@@ -154,8 +154,8 @@ def load_pdf(file_path: str) -> str:
         # Re-raise our custom ValueError messages
         raise
     except Exception as e:
-        # Catch any other PDF reading errors
-        raise ValueError(f"Failed to read PDF: {str(e)}")
+        # Catch any other PDF reading errors and preserve exception chain
+        raise ValueError(f"Failed to read PDF: {str(e)}") from e
 
 
 def load_document(file_path: str) -> str:
