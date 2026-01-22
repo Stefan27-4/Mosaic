@@ -52,3 +52,4 @@ test_routing.py
 test_model_mapping.py
 test_classify_chunk.py
 test_gui.py
+mosaic/config/secrets.py
