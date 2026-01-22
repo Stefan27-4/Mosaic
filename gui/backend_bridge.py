@@ -7,7 +7,7 @@ Provides thread-safe bridge between async RLM backend and synchronous customtkin
 import threading
 import queue
 import asyncio
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, Union, List
 import traceback
 
 
@@ -198,7 +198,7 @@ class MosaicBridge:
             except:
                 pass
     
-    def _process_trajectory(self, trajectory):
+    def _process_trajectory(self, trajectory: Union[List[Dict[str, Any]], Dict[str, Any]]):
         """
         Process the RLM trajectory and send relevant messages to GUI.
         
@@ -210,8 +210,10 @@ class MosaicBridge:
             if isinstance(trajectory, list):
                 iterations = trajectory
                 # Get subcall count from the last iteration if it exists
-                subcall_count = iterations[-1].get("subcalls", 0) if iterations else 0
-                # Cost tracking isn't in the list view yet, set to 0 or calculate manually
+                subcall_count = 0
+                if iterations and isinstance(iterations[-1], dict):
+                    subcall_count = iterations[-1].get("subcalls", 0)
+                # Cost tracking isn't available in the list format
                 cost = 0
             else:
                 # Existing logic for dict
