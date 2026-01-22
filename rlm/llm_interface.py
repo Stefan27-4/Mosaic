@@ -389,6 +389,8 @@ def create_model_map(
     
     # Try to initialize Anthropic interface
     try:
+        if not anthropic_api_key:
+            raise ValueError("Anthropic API Key is missing")
         anthropic_interface = AnthropicInterface(
             model="claude-3-5-sonnet-20241022",
             api_key=anthropic_api_key,
@@ -398,12 +400,14 @@ def create_model_map(
         model_map["claude-opus-4.5"] = anthropic_interface
         initialized_providers.append("Anthropic (claude-opus-4.5)")
         logger.info("Successfully initialized Anthropic interface")
-    except (ImportError, Exception) as e:
+    except (ImportError, ValueError, Exception) as e:
         logger.warning(f"Failed to initialize Anthropic interface: {e}")
         failed_providers.append(f"Anthropic ({type(e).__name__}: {str(e)})")
     
     # Try to initialize OpenAI interface
     try:
+        if not openai_api_key:
+            raise ValueError("OpenAI API Key is missing")
         openai_interface_gpt4o = OpenAIInterface(
             model="gpt-4o",
             api_key=openai_api_key,
@@ -422,12 +426,14 @@ def create_model_map(
         model_map["deepseek-3.2"] = openai_interface_gpt4o_mini
         initialized_providers.append("OpenAI (gpt-5.2, grok-4.1, deepseek-3.2)")
         logger.info("Successfully initialized OpenAI interface")
-    except (ImportError, Exception) as e:
+    except (ImportError, ValueError, Exception) as e:
         logger.warning(f"Failed to initialize OpenAI interface: {e}")
         failed_providers.append(f"OpenAI ({type(e).__name__}: {str(e)})")
     
     # Try to initialize Gemini interface
     try:
+        if not google_api_key:
+            raise ValueError("Google API Key is missing")
         gemini_interface = GeminiInterface(
             model="gemini-1.5-pro",
             api_key=google_api_key,
@@ -437,7 +443,7 @@ def create_model_map(
         model_map["gemini-3"] = gemini_interface
         initialized_providers.append("Google Gemini (gemini-3)")
         logger.info("Successfully initialized Google Gemini interface")
-    except (ImportError, Exception) as e:
+    except (ImportError, ValueError, Exception) as e:
         logger.warning(f"Failed to initialize Google Gemini interface: {e}")
         failed_providers.append(f"Google Gemini ({type(e).__name__}: {str(e)})")
     
