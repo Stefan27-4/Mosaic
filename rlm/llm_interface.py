@@ -266,20 +266,17 @@ class GeminiInterface(LLMInterface):
             temperature: Sampling temperature
         """
         try:
-            import google.generativeai as genai
+            from google import genai
         except ImportError:
-            raise ImportError("google-generativeai package is required. Install with: pip install google-generativeai")
+            raise ImportError("google-genai package is required. Install with: pip install google-genai")
         
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
         
-        # Configure API key
-        if api_key:
-            genai.configure(api_key=api_key)
-        # If no api_key provided, will use GOOGLE_API_KEY environment variable
-        
-        self.client = genai.GenerativeModel(model)
+        # Initialize client with API key
+        # The new client handles the API key directly
+        self.client = genai.Client(api_key=api_key)
     
     def query(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
@@ -299,14 +296,15 @@ class GeminiInterface(LLMInterface):
             full_prompt = prompt
         
         # Configure generation parameters
-        generation_config = {
+        config = {
             "temperature": self.temperature,
             "max_output_tokens": self.max_tokens,
         }
         
-        response = self.client.generate_content(
-            full_prompt,
-            generation_config=generation_config
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=full_prompt,
+            config=config
         )
         
         return response.text
@@ -329,15 +327,15 @@ class GeminiInterface(LLMInterface):
             full_prompt = prompt
         
         # Configure generation parameters
-        generation_config = {
+        config = {
             "temperature": self.temperature,
             "max_output_tokens": self.max_tokens,
         }
         
-        # Use agenerate_content for async operations (correct method name)
-        response = await self.client.agenerate_content(
-            full_prompt,
-            generation_config=generation_config
+        response = await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=full_prompt,
+            config=config
         )
         
         return response.text
