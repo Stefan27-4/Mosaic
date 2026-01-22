@@ -6,6 +6,7 @@ and context formatting.
 """
 
 from typing import List, Union, Any
+import fitz  # PyMuPDF
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int = 0) -> List[str]:
@@ -100,6 +101,58 @@ def format_context_info(context: Any) -> dict:
             "context_total_length": len(context_str),
             "context_lengths": str([len(context_str)])
         }
+
+
+def load_pdf(file_path: str) -> str:
+    """
+    Extract text from a PDF file.
+    
+    Args:
+        file_path: Path to the PDF file
+        
+    Returns:
+        Extracted text content as string
+        
+    Raises:
+        ValueError: If PDF cannot be read or is password-protected
+        FileNotFoundError: If the file does not exist
+    """
+    try:
+        # Open the PDF file
+        doc = fitz.open(file_path)
+        
+        # Check if PDF is encrypted/password-protected
+        if doc.is_encrypted:
+            doc.close()
+            raise ValueError("PDF is password-protected and cannot be read")
+        
+        # Extract text from all pages
+        text_content = []
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text = page.get_text()
+            if text.strip():  # Only add non-empty pages
+                text_content.append(text)
+        
+        # Close the document
+        doc.close()
+        
+        # Combine all pages with double newline separator
+        combined_text = "\n\n".join(text_content)
+        
+        if not combined_text.strip():
+            raise ValueError("PDF contains no extractable text")
+        
+        return combined_text
+        
+    except FileNotFoundError:
+        raise FileNotFoundError(f"PDF file not found: {file_path}")
+    except ValueError as e:
+        # Re-raise our custom ValueError messages
+        raise
+    except Exception as e:
+        # Catch any other PDF reading errors
+        raise ValueError(f"Failed to read PDF: {str(e)}")
 
 
 def load_document(file_path: str) -> str:
