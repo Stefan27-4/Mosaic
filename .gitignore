@@ -53,3 +53,6 @@ test_model_mapping.py
 test_classify_chunk.py
 test_gui.py
 mosaic/config/secrets.py
+
+# Temp pip files
+=*
