@@ -8,6 +8,7 @@ import customtkinter as ctk
 from typing import Optional, Callable
 import time
 import queue
+import os
 from tkinter import filedialog
 from .backend_bridge import MosaicBridge
 
@@ -315,7 +316,6 @@ class MainChatView(ctk.CTk):
                 return
             
             # Extract filename for display
-            import os
             filename = os.path.basename(file_path)
             
             # Show loading message

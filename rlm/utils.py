@@ -145,9 +145,13 @@ def load_pdf(file_path: str) -> str:
         
         return combined_text
         
-    except fitz.FileNotFoundError:
-        raise FileNotFoundError(f"PDF file not found: {file_path}")
-    except ValueError as e:
+    except RuntimeError as e:
+        # PyMuPDF raises RuntimeError subclass for file not found
+        if "no such file" in str(e):
+            raise FileNotFoundError(f"PDF file not found: {file_path}")
+        # Re-raise other runtime errors as ValueError
+        raise ValueError(f"Failed to read PDF: {str(e)}")
+    except ValueError:
         # Re-raise our custom ValueError messages
         raise
     except Exception as e:
