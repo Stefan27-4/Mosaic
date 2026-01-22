@@ -145,7 +145,7 @@ def load_pdf(file_path: str) -> str:
         
         return combined_text
         
-    except FileNotFoundError:
+    except fitz.FileNotFoundError:
         raise FileNotFoundError(f"PDF file not found: {file_path}")
     except ValueError as e:
         # Re-raise our custom ValueError messages
